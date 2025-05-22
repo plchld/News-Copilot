@@ -1,0 +1,41 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+env/
+venv/
+ENV/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# ChromaDB
+.chroma/
+
+# API Keys & Secrets
+# Add any files containing sensitive keys here e.g. secrets.txt
+# It looks like API keys are hardcoded in the python scripts. This is not recommended.
+# Consider moving them to environment variables or a git-ignored config file.
+
+# Scraped article text files in the root (if these are outputs and not source material)
+article_test.txt
+capital.txt
+liberal
+liberal.txt
+pdf.kathimerini.com.cy.txt
+tsipras
+www.greekfinanceforum.com.txt
+www.in.gr.txt
+www.moneyreview.gr.txt
+www.political.gr.txt
+
+# If the GPT directory contains large models or non-code assets:
+# GPT/
+
+# Specific file to ignore
+env 
