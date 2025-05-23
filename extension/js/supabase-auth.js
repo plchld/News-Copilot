@@ -41,6 +41,36 @@ class SupabaseAuth {
             });
         }
     }
+
+    async signInWithGoogle() {
+        if (!this.supabase) throw new Error('Supabase not initialized');
+
+        try {
+            const { data, error } = await this.supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: 'https://news-copilot.vercel.app/auth/callback'
+                }
+            });
+
+            if (error) throw error;
+
+            // signInWithOAuth typically redirects, so this part might not be reached
+            // if the redirect happens immediately.
+            // However, if it returns data (e.g., the URL to redirect to),
+            // the caller (popup-supabase.js) will handle the redirect.
+            return {
+                success: true,
+                data: data // This might contain the provider's URL
+            };
+        } catch (error) {
+            console.error('Error signing in with Google:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
+    }
     
     async getConfig() {
         // In production, these should come from your backend or be hardcoded
@@ -74,7 +104,7 @@ class SupabaseAuth {
             const { data, error } = await this.supabase.auth.signInWithOtp({
                 email: email,
                 options: {
-                    emailRedirectTo: `${window.location.origin}/auth/callback`
+                    emailRedirectTo: 'https://news-copilot.vercel.app/auth/callback'
                 }
             });
             
@@ -135,7 +165,7 @@ class SupabaseAuth {
                 result = await this.supabase.auth.signInWithOtp({
                     email: email,
                     options: {
-                        emailRedirectTo: `${window.location.origin}/auth/callback`
+                        emailRedirectTo: 'https://news-copilot.vercel.app/auth/callback'
                     }
                 });
             }

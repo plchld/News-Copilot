@@ -289,7 +289,7 @@ def send_magic_link():
         response = supabase.auth.sign_in_with_otp({
             'email': email,
             'options': {
-                'redirect_to': f"{os.getenv('BASE_URL', 'http://localhost:8080')}/auth/callback"
+                'redirect_to': os.getenv('SUPABASE_REDIRECT_URL', 'https://news-copilot.vercel.app/auth/callback')
             }
         })
         
