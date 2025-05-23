@@ -183,14 +183,13 @@ CORS(app)             # Enable CORS
 
 # Import and register auth blueprints
 try:
-    from api.auth_routes import auth_bp
-    from api.admin import admin_bp
-    from api.simple_auth import require_auth  # Use simple auth for Vercel
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(admin_bp)
+    from api.supabase_auth import supabase_auth_bp, require_supabase_auth as require_auth
+    app.register_blueprint(supabase_auth_bp)
     AUTH_ENABLED = True
-except ImportError:
-    print("Auth system not available - running without authentication")
+    print("✅ Supabase authentication enabled")
+except ImportError as e:
+    print(f"⚠️ Supabase auth not available: {e}")
+    print("Running without authentication")
     AUTH_ENABLED = False
     # Mock decorator for local development
     def require_auth(analysis_type='basic_analysis'):
@@ -205,16 +204,40 @@ def home():
         "service": "News Copilot API",
         "status": "running",
         "version": "1.0.0",
+        "auth_enabled": AUTH_ENABLED,
         "endpoints": {
             "/": "This health check",
             "/augment-stream": "GET - Stream article analysis with jargon and viewpoints",
-            "/deep-analysis": "POST - Deep analysis (fact-check, bias, timeline, expert opinions)"
+            "/deep-analysis": "POST - Deep analysis (fact-check, bias, timeline, expert opinions)",
+            "/api/auth/*": "Authentication endpoints",
+            "/api/admin/*": "Admin endpoints"
         },
         "usage": {
             "augment-stream": "GET /?url=<article_url>",
             "deep-analysis": "POST with JSON body: {url, analysisType, searchParams}"
         }
     })
+
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """Simple health check for monitoring"""
+    return jsonify({"status": "ok"})
+
+# Serve static verification pages
+@app.route('/verification-success.html')
+def verification_success():
+    """Serve email verification success page"""
+    return app.send_static_file('verification-success.html')
+
+@app.route('/verification-failed.html')
+def verification_failed():
+    """Serve email verification failed page"""
+    return app.send_static_file('verification-failed.html')
+
+@app.route('/verification-expired.html')
+def verification_expired():
+    """Serve email verification expired page"""
+    return app.send_static_file('verification-failed.html')  # Use same page for now
 
 @app.route('/augment-stream', methods=['GET'])
 @require_auth('basic_analysis')

@@ -4,6 +4,7 @@
 from flask import Blueprint, request, jsonify
 from api.auth import generate_user_token, get_usage_stats, UserTier, TIER_LIMITS
 from api.models import create_user, get_user, update_user_tier, User
+from api.email_verification import create_verification_token, send_verification_email, is_email_verified
 import os
 
 auth_bp = Blueprint('auth', __name__)
@@ -16,6 +17,7 @@ def register():
     """Register new user with email"""
     data = request.json
     email = data.get('email')
+    api_key = data.get('api_key')  # Optional BYOK
     
     if not email:
         return jsonify({'error': 'Email required'}), 400
@@ -23,21 +25,54 @@ def register():
     # Check if user exists
     existing_user = get_user(email)
     if existing_user:
+        # If user exists but not verified, send new verification email
+        if not is_email_verified(email) and not DEMO_MODE:
+            verification_token = create_verification_token(email)
+            if verification_token:
+                send_verification_email(email, verification_token)
+            return jsonify({
+                'message': 'Verification email sent',
+                'email_verified': False
+            }), 200
+        
         # Return existing user token
         token = generate_user_token(existing_user.email, existing_user.tier)
         return jsonify({
             'token': token,
-            'tier': existing_user.tier,
+            'user': {
+                'email': existing_user.email,
+                'tier': existing_user.tier,
+                'email_verified': is_email_verified(email)
+            },
             'usage': get_usage_stats(email)
         })
     
+    # Determine tier based on API key
+    tier = UserTier.BYOK if api_key else UserTier.FREE
+    
     # Create new user
-    user = User(email=email)
+    user = User(email=email, tier=tier, api_key=api_key if api_key else None)
     if create_user(user):
-        token = generate_user_token(email, UserTier.FREE)
+        
+        # Send verification email (unless demo mode or BYOK)
+        if not DEMO_MODE and not api_key:
+            verification_token = create_verification_token(email)
+            if verification_token:
+                send_verification_email(email, verification_token)
+                return jsonify({
+                    'message': 'Registration successful! Please check your email for verification.',
+                    'email_verified': False
+                }), 201
+        
+        # Demo mode or BYOK - return token immediately
+        token = generate_user_token(email, tier)
         return jsonify({
             'token': token,
-            'tier': UserTier.FREE,
+            'user': {
+                'email': email,
+                'tier': tier,
+                'email_verified': DEMO_MODE or bool(api_key)
+            },
             'usage': {'basic_analysis': 0, 'deep_analysis': 0}
         })
     

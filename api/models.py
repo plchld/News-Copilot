@@ -31,6 +31,8 @@ def init_db():
             stripe_customer_id VARCHAR(255),
             stripe_subscription_id VARCHAR(255),
             api_key TEXT,
+            email_verified BOOLEAN DEFAULT false,
+            is_admin BOOLEAN DEFAULT false,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
@@ -47,6 +49,19 @@ def init_db():
             cost_usd DECIMAL(10,4),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_email) REFERENCES users(email)
+        )
+    ''')
+    
+    # Email verifications table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS email_verifications (
+            id SERIAL PRIMARY KEY,
+            email VARCHAR(255) NOT NULL,
+            token VARCHAR(255) UNIQUE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            verified BOOLEAN DEFAULT false,
+            verified_at TIMESTAMP,
+            UNIQUE(email)
         )
     ''')
     

@@ -11,6 +11,7 @@ from typing import Optional, Dict, Tuple
 
 # Use Postgres for both user data and rate limiting
 from api.models import get_user, log_usage, UsageLog, get_monthly_usage
+from api.email_verification import create_verification_token, send_verification_email, is_email_verified
 
 # JWT secret
 JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-change-in-production')
