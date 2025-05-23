@@ -9,8 +9,8 @@ from functools import wraps
 from flask import request, jsonify
 from typing import Optional, Dict, Tuple
 
-# Use SQLite for both user data and rate limiting
-from api.models import get_user, log_usage, UsageLog
+# Use Postgres for both user data and rate limiting
+from api.models import get_user, log_usage, UsageLog, get_monthly_usage
 
 # JWT secret
 JWT_SECRET = os.getenv('JWT_SECRET', 'your-secret-key-change-in-production')
@@ -65,23 +65,7 @@ def verify_token(token: str) -> Optional[Dict]:
     except jwt.InvalidTokenError:
         return None
 
-def get_monthly_usage(email: str, analysis_type: str) -> int:
-    """Get usage count for current month from database"""
-    import sqlite3
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT COUNT(*) 
-        FROM usage_logs 
-        WHERE user_email = ? 
-        AND analysis_type = ?
-        AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
-    ''', (email, analysis_type))
-    
-    count = cursor.fetchone()[0]
-    conn.close()
-    return count
+# get_monthly_usage is now imported from models
 
 def require_auth(analysis_type: str = 'basic_analysis'):
     """Decorator to require authentication and check rate limits"""

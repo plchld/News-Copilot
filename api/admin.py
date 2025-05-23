@@ -2,7 +2,9 @@
 # Admin endpoints for user management and analytics
 
 from flask import Blueprint, request, jsonify
-import sqlite3
+import psycopg2
+import psycopg2.extras
+from api.models import get_db_connection
 import os
 from datetime import datetime, timedelta
 from functools import wraps
@@ -25,8 +27,8 @@ def require_admin(f):
 @require_admin
 def list_users():
     """Get all users with stats"""
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
     cursor.execute('''
         SELECT 
@@ -38,20 +40,20 @@ def list_users():
             SUM(l.cost_usd) as total_cost
         FROM users u
         LEFT JOIN usage_logs l ON u.email = l.user_email
-        GROUP BY u.email
+        GROUP BY u.email, u.tier, u.created_at
         ORDER BY u.created_at DESC
     ''')
     
     users = []
     for row in cursor.fetchall():
         users.append({
-            'email': row[0],
-            'tier': row[1],
-            'created_at': row[2],
-            'active_days': row[3] or 0,
-            'total_requests': row[4] or 0,
-            'total_cost': round(row[5] or 0, 2),
-            'avg_daily_requests': round((row[4] or 0) / max(row[3] or 1, 1), 1)
+            'email': row['email'],
+            'tier': row['tier'],
+            'created_at': str(row['created_at']),
+            'active_days': row['active_days'] or 0,
+            'total_requests': row['total_requests'] or 0,
+            'total_cost': round(float(row['total_cost']) if row['total_cost'] else 0, 2),
+            'avg_daily_requests': round((row['total_requests'] or 0) / max(row['active_days'] or 1, 1), 1)
         })
     
     conn.close()
@@ -73,8 +75,8 @@ def list_users():
 @require_admin
 def usage_stats():
     """Get usage statistics"""
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
     # Daily usage for last 30 days
     cursor.execute('''
@@ -84,7 +86,7 @@ def usage_stats():
             COUNT(id) as requests,
             SUM(cost_usd) as cost
         FROM usage_logs
-        WHERE created_at >= date('now', '-30 days')
+        WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
         GROUP BY DATE(created_at)
         ORDER BY date DESC
     ''')
@@ -92,26 +94,26 @@ def usage_stats():
     daily_stats = []
     for row in cursor.fetchall():
         daily_stats.append({
-            'date': row[0],
-            'unique_users': row[1],
-            'requests': row[2],
-            'cost': round(row[3] or 0, 2)
+            'date': str(row['date']),
+            'unique_users': row['unique_users'],
+            'requests': row['requests'],
+            'cost': round(float(row['cost']) if row['cost'] else 0, 2)
         })
     
     # Get email list for marketing
     cursor.execute('''
         SELECT email, tier, created_at 
         FROM users 
-        WHERE tier = 'free'
+        WHERE tier = %s
         ORDER BY created_at DESC
-    ''')
+    ''', ('free',))
     
     free_users = []
     for row in cursor.fetchall():
         free_users.append({
-            'email': row[0],
-            'tier': row[1],
-            'created_at': row[2]
+            'email': row['email'],
+            'tier': row['tier'],
+            'created_at': str(row['created_at'])
         })
     
     conn.close()
@@ -127,19 +129,19 @@ def export_emails():
     """Export email list for marketing campaigns"""
     tier_filter = request.args.get('tier', 'all')
     
-    conn = sqlite3.connect('users.db')
-    cursor = conn.cursor()
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
     
     if tier_filter == 'all':
         cursor.execute('SELECT email, tier FROM users')
     else:
-        cursor.execute('SELECT email, tier FROM users WHERE tier = ?', (tier_filter,))
+        cursor.execute('SELECT email, tier FROM users WHERE tier = %s', (tier_filter,))
     
     emails = []
     for row in cursor.fetchall():
         emails.append({
-            'email': row[0],
-            'tier': row[1]
+            'email': row['email'],
+            'tier': row['tier']
         })
     
     conn.close()

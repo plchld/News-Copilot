@@ -4,25 +4,32 @@
 from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, EmailStr
-import sqlite3
+import psycopg2
+import psycopg2.extras
 import os
 
-# Simple SQLite database for MVP
-DB_PATH = os.getenv('DATABASE_PATH', 'users.db')
+# Neon Postgres database URL from Vercel
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+def get_db_connection():
+    """Get database connection"""
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL environment variable not set")
+    return psycopg2.connect(DATABASE_URL)
 
 def init_db():
     """Initialize database tables"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db_connection()
     cursor = conn.cursor()
     
     # Users table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            tier TEXT DEFAULT 'free',
-            stripe_customer_id TEXT,
-            stripe_subscription_id TEXT,
+            id SERIAL PRIMARY KEY,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            tier VARCHAR(50) DEFAULT 'free',
+            stripe_customer_id VARCHAR(255),
+            stripe_subscription_id VARCHAR(255),
             api_key TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -32,12 +39,12 @@ def init_db():
     # Usage logs for analytics
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS usage_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_email TEXT NOT NULL,
-            analysis_type TEXT NOT NULL,
+            id SERIAL PRIMARY KEY,
+            user_email VARCHAR(255) NOT NULL,
+            analysis_type VARCHAR(50) NOT NULL,
             article_url TEXT,
             tokens_used INTEGER,
-            cost_usd REAL,
+            cost_usd DECIMAL(10,4),
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_email) REFERENCES users(email)
         )
@@ -64,53 +71,55 @@ class UsageLog(BaseModel):
 def create_user(user: User) -> bool:
     """Create new user in database"""
     try:
-        conn = sqlite3.connect(DB_PATH)
+        conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute('''
             INSERT INTO users (email, tier, api_key)
-            VALUES (?, ?, ?)
+            VALUES (%s, %s, %s)
         ''', (user.email, user.tier, user.api_key))
         conn.commit()
         conn.close()
         return True
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
+        conn.rollback()
+        conn.close()
         return False
 
 def get_user(email: str) -> Optional[User]:
     """Get user by email"""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users WHERE email = ?', (email,))
+    conn = get_db_connection()
+    cursor = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+    cursor.execute('SELECT * FROM users WHERE email = %s', (email,))
     row = cursor.fetchone()
     conn.close()
     
     if row:
         return User(
-            email=row[1],
-            tier=row[2],
-            stripe_customer_id=row[3],
-            stripe_subscription_id=row[4],
-            api_key=row[5],
-            created_at=row[6]
+            email=row['email'],
+            tier=row['tier'],
+            stripe_customer_id=row['stripe_customer_id'],
+            stripe_subscription_id=row['stripe_subscription_id'],
+            api_key=row['api_key'],
+            created_at=row['created_at']
         )
     return None
 
 def update_user_tier(email: str, tier: str, stripe_info: dict = None) -> bool:
     """Update user's subscription tier"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db_connection()
     cursor = conn.cursor()
     
     if stripe_info:
         cursor.execute('''
             UPDATE users 
-            SET tier = ?, stripe_customer_id = ?, stripe_subscription_id = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE email = ?
+            SET tier = %s, stripe_customer_id = %s, stripe_subscription_id = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE email = %s
         ''', (tier, stripe_info.get('customer_id'), stripe_info.get('subscription_id'), email))
     else:
         cursor.execute('''
             UPDATE users 
-            SET tier = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE email = ?
+            SET tier = %s, updated_at = CURRENT_TIMESTAMP
+            WHERE email = %s
         ''', (tier, email))
     
     conn.commit()
@@ -120,28 +129,49 @@ def update_user_tier(email: str, tier: str, stripe_info: dict = None) -> bool:
 
 def log_usage(log: UsageLog) -> None:
     """Log API usage for billing"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
         INSERT INTO usage_logs (user_email, analysis_type, article_url, tokens_used, cost_usd)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s)
     ''', (log.user_email, log.analysis_type, log.article_url, log.tokens_used, log.cost_usd))
     conn.commit()
     conn.close()
 
 def get_monthly_cost(email: str) -> float:
     """Get total cost for current month"""
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
         SELECT SUM(cost_usd) 
         FROM usage_logs 
-        WHERE user_email = ? 
-        AND strftime('%Y-%m', created_at) = strftime('%Y-%m', 'now')
+        WHERE user_email = %s 
+        AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_TIMESTAMP)
     ''', (email,))
     result = cursor.fetchone()
     conn.close()
-    return result[0] if result[0] else 0.0
+    return float(result[0]) if result[0] else 0.0
+
+def get_monthly_usage(email: str, analysis_type: str) -> int:
+    """Get usage count for current month from database"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT COUNT(*) 
+        FROM usage_logs 
+        WHERE user_email = %s 
+        AND analysis_type = %s
+        AND DATE_TRUNC('month', created_at) = DATE_TRUNC('month', CURRENT_TIMESTAMP)
+    ''', (email, analysis_type))
+    
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
 
 # Initialize database on import
-init_db()
+try:
+    init_db()
+    print("Database initialized successfully")
+except Exception as e:
+    print(f"Database initialization failed: {e}")
