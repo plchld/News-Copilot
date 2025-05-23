@@ -1,0 +1,76 @@
+{
+  "manifest_version": 3,
+  "name": "Article Augmentor",
+  "version": "0.2.0",
+  "description": "Provides context and alternative viewpoints for news articles.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "nativeMessaging"
+  ],
+  "host_permissions": [
+    "http://localhost:8080/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.kathimerini.gr/*",
+        "*://*.tanea.gr/*",
+        "*://*.in.gr/*",
+        "*://*.news247.gr/*",
+        "*://*.protothema.gr/*",
+        "*://*.naftemporiki.gr/*",
+        "*://*.capital.gr/*",
+        "*://*.iefimerida.gr/*",
+        "*://*.newsbeast.gr/*",
+        "*://*.skai.gr/*",
+        "*://*.tovima.gr/*",
+        "*://*.star.gr/*",
+        "*://*.newsbomb.gr/*",
+        "*://*.enikos.gr/*",
+        "*://*.ethnos.gr/*",
+        "*://*.efsyn.gr/*",
+        "*://*.avgi.gr/*",
+        "*://*.real.gr/*",
+        "*://*.makthes.gr/*",
+        "*://*.documento.gr/*",
+        "*://*.liberal.gr/*",
+        "*://*.thetoc.gr/*",
+        "*://*.cnn.gr/*",
+        "*://*.ant1news.gr/*",
+        "*://*.zougla.gr/*",
+        "*://*.contra.gr/*",
+        "*://*.dikaiologitika.gr/*",
+        "*://*.newsit.gr/*",
+        "*://*.onalert.gr/*",
+        "*://*.newpost.gr/*",
+        "*://*.thestival.gr/*",
+        "*://*.pentapostagma.gr/*",
+        "*://*.mono.gr/*",
+        "*://*.alpha.gr/*",
+        "*://*.mega.gr/*",
+        "*://*.open.gr/*",
+        "*://*.ert.gr/*",
+        "*://*.amna.gr/*",
+        "*://*.lifo.gr/*",
+        "*://*.popaganda.gr/*",
+        "*://*.tvxs.gr/*",
+        "*://*.insider.gr/*",
+        "*://*.newmoney.gr/*",
+        "*://*.cretalive.gr/*",
+        "*://*.patris.gr/*",
+        "*://*.vradini.gr/*",
+        "*://*.dimokratianews.gr/*",
+        "*://*.pronews.gr/*"
+      ],
+      "js": ["content_script_new.js"],
+      "type": "module"
+    }
+  ],
+  "action": {
+    "default_title": "Augment Article"
+  }
+} 
