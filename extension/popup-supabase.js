@@ -60,8 +60,31 @@ class SimpleSupabaseClient {
             signInWithOtp: this.signInWithOtp.bind(this),
             getSession: this.getSession.bind(this),
             onAuthStateChange: this.onAuthStateChange.bind(this),
-            signOut: async () => ({ error: null })
+            signOut: async () => ({ error: null }),
+            signInWithOAuth: this.signInWithOAuth.bind(this)
         };
+    }
+
+    async signInWithOAuth(options) {
+        const { provider, options: { redirectTo } } = options;
+        const authUrl = `${this.url}/auth/v1/authorize?provider=${provider}&redirect_to=${redirectTo}`;
+        
+        // For extensions, we need to open this in a new tab
+        // The Supabase library would normally handle the redirect.
+        try {
+            if (chrome && chrome.tabs) {
+                chrome.tabs.create({ url: authUrl });
+            } else {
+                // Fallback for non-extension environments (testing, etc.)
+                window.open(authUrl, '_blank');
+            }
+            // This method itself doesn't return user/session in this flow,
+            // the redirect and subsequent session handling does.
+            return { data: { provider, url: authUrl }, error: null };
+        } catch (error) {
+            console.error('Error in signInWithOAuth:', error);
+            return { data: null, error };
+        }
     }
 }
 
@@ -101,10 +124,14 @@ class NewscopilotAuth {
         this.deepUsage = document.getElementById('deepUsage');
         this.basicUsageBar = document.getElementById('basicUsageBar');
         this.deepUsageBar = document.getElementById('deepUsageBar');
+        this.googleSignInButton = document.getElementById('googleSignInButton');
     }
     
     setupEventListeners() {
         this.magicLinkButton.addEventListener('click', () => this.sendMagicLink());
+        if (this.googleSignInButton) { // Ensure button exists
+            this.googleSignInButton.addEventListener('click', () => this.handleGoogleSignIn());
+        }
         this.resendButton.addEventListener('click', () => this.sendMagicLink());
         this.backToLoginButton.addEventListener('click', () => this.showLoginForm());
         this.logoutButton.addEventListener('click', () => this.signOut());
@@ -116,6 +143,42 @@ class NewscopilotAuth {
                 this.sendMagicLink();
             }
         });
+    }
+
+    async handleGoogleSignIn() {
+        this.setLoading(this.googleSignInButton, true);
+        this.showMessage('Ανακατεύθυνση στην Google για σύνδεση...', 'info');
+
+        try {
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${BACKEND_URL}/auth/callback` // Ensure this matches your Supabase redirect settings
+                }
+            });
+
+            if (error) {
+                throw error;
+            }
+            
+            // For OAuth in extensions, the user is redirected.
+            // The onAuthStateChange listener (if fully implemented and listened to)
+            // or a manual check after the redirect would handle the user session.
+            // We might not get an immediate session here. The tab will open, user signs in,
+            // and then Supabase redirects to /auth/callback, which should then notify the extension.
+            // For now, popup might close or refresh. User should be signed in when they reopen.
+            // We can't directly confirm sign-in here without a more complex flow.
+
+        } catch (error) {
+            console.error('Error during Google Sign-In:', error);
+            this.showMessage(`Σφάλμα σύνδεσης Google: ${error.message}`, 'error');
+        } finally {
+            // The button's loading state might need to be reset if the popup remains open
+            // and the redirect doesn't happen or fails before redirect.
+            // However, typically the redirect will cause the popup to lose context or close.
+            // If the popup is re-opened, checkAuthState should reflect the new state.
+            this.setLoading(this.googleSignInButton, false); 
+        }
     }
     
     async checkAuthState() {
@@ -370,6 +433,8 @@ class NewscopilotAuth {
                 button.textContent = 'Αποσύνδεση';
             } else if (button === this.apiKeyButton) {
                 button.textContent = 'Αποθήκευση API Key';
+            } else if (button === this.googleSignInButton) {
+                button.textContent = 'Σύνδεση με Google';
             }
         }
     }
