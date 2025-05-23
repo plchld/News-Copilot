@@ -10,7 +10,8 @@
     "storage"
   ],
   "host_permissions": [
-    "https://news-copilot.vercel.app/*"
+    "https://news-copilot.vercel.app/*",
+    "https://zzweleyslkxemrwmlbri.supabase.co/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -73,6 +74,6 @@
   ],
   "action": {
     "default_title": "News Copilot",
-    "default_popup": "popup.html"
+    "default_popup": "popup-supabase.html"
   }
 } 

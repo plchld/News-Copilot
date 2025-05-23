@@ -1,220 +1,157 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="el">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>News Copilot Extension Test Page</title>
+    <title>News Copilot Auth Test</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            line-height: 1.6;
+            font-family: 'Inter', sans-serif;
+            margin: 20px;
+            max-width: 400px;
         }
-        .test-section {
-            background: #f5f5f5;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
+        .form-group {
+            margin-bottom: 15px;
         }
-        .test-article {
-            background: white;
-            padding: 30px;
-            margin: 20px 0;
-            border: 1px solid #ddd;
-            border-radius: 8px;
+        label {
+            display: block;
+            margin-bottom: 5px;
         }
-        .instructions {
-            background: #e7f3ff;
-            padding: 15px;
-            border-left: 4px solid #0066cc;
-            margin: 20px 0;
-        }
-        code {
-            background: #f0f0f0;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-family: monospace;
-        }
-        .status {
+        input[type="email"] {
+            width: 100%;
             padding: 10px;
-            margin: 10px 0;
-            border-radius: 4px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
         }
-        .success { background: #d4edda; color: #155724; }
-        .error { background: #f8d7da; color: #721c24; }
-        .warning { background: #fff3cd; color: #856404; }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #ccc;
+        }
+        .message {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .error {
+            background: #fee;
+            color: #c33;
+            border: 1px solid #fcc;
+        }
+        .success {
+            background: #efe;
+            color: #393;
+            border: 1px solid #cfc;
+        }
+        .info {
+            background: #eef;
+            color: #339;
+            border: 1px solid #ccf;
+        }
     </style>
 </head>
 <body>
-    <h1>🧪 News Copilot Extension Test Page</h1>
+    <h1>News Copilot Auth Test</h1>
+    <p>This is a test page to debug the authentication issue.</p>
     
-    <div class="instructions">
-        <h3>📋 Testing Instructions</h3>
-        <ol>
-            <li>Load the News Copilot extension in Chrome (Developer mode)</li>
-            <li>Make sure your backend is running at <code>http://localhost:8080</code></li>
-            <li>Open this test page on a supported Greek news site domain</li>
-            <li>Look for the News Copilot sidebar to appear</li>
-            <li>Test the authentication flow and analysis features</li>
-        </ol>
+    <form id="authForm">
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" required placeholder="your@email.com">
+        </div>
+        <button type="submit" id="submitBtn">Send Magic Link</button>
+    </form>
+    
+    <div id="message" class="message" style="display: none;"></div>
+    
+    <div id="debugInfo" style="margin-top: 20px; padding: 10px; background: #f5f5f5; border-radius: 5px;">
+        <h3>Debug Info:</h3>
+        <div id="debugText">Ready...</div>
     </div>
 
-    <div class="test-section">
-        <h3>🔧 Test Controls</h3>
-        <button onclick="testExtensionPresence()">Check Extension Loaded</button>
-        <button onclick="testBackendConnection()">Test Backend Connection</button>
-        <button onclick="simulateAuthFlow()">Simulate Auth Flow</button>
-        <button onclick="testAnalysisRequest()">Test Analysis Request</button>
-        
-        <div id="test-results"></div>
-    </div>
+    <script type="module">
+        import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
 
-    <div class="test-article">
-        <h2>Δοκιμαστικό Άρθρο Ειδήσεων</h2>
-        <p><strong>Αθήνα</strong> - Αυτό είναι ένα δοκιμαστικό άρθρο για την εφαρμογή News Copilot. Περιέχει διάφορους τεχνικούς όρους και έννοιες που θα πρέπει να αναλυθούν από την τεχνητή νοημοσύνη.</p>
-        
-        <p>Στο άρθρο αυτό αναφέρουμε έννοιες όπως <strong>blockchain</strong>, <strong>cryptocurrency</strong>, <strong>artificial intelligence</strong>, και <strong>machine learning</strong>. Επίσης, μπορεί να περιλαμβάνει οικονομικούς όρους όπως <strong>GDP</strong>, <strong>inflation rate</strong>, και <strong>quantitative easing</strong>.</p>
-        
-        <p>Το άρθρο μπορεί επίσης να αναφέρει γεγονότα από διάφορες χρονικές περιόδους και να παρουσιάζει διαφορετικές απόψεις από εμπειρογνώμονες του χώρου.</p>
-        
-        <h3>Υποενότητα με Περισσότερες Λεπτομέρεες</h3>
-        <p>Εδώ μπορούμε να προσθέσουμε περισσότερες τεχνικές λεπτομέρειες που θα χρειαστούν ανάλυση. Για παράδειγμα, όροι όπως <strong>API</strong>, <strong>REST</strong>, <strong>JSON</strong>, και <strong>OAuth</strong>.</p>
-    </div>
+        // Same configuration as extension
+        const SUPABASE_URL = 'https://zzweleyslkxemrwmlbri.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6d2VsZXlzbGt4ZW1yd21sYnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwMTY5MzMsImV4cCI6MjA2MzU5MjkzM30.5-N5bCXYc_uBr-1EQsUajyp-UXxZW_s3BIXJm-GS1ek'
+        const BACKEND_URL = 'https://news-copilot.vercel.app'
 
-    <script>
-        function logResult(message, type = 'info') {
-            const resultsDiv = document.getElementById('test-results');
-            const statusClass = type === 'success' ? 'success' : type === 'error' ? 'error' : 'warning';
-            resultsDiv.innerHTML += `<div class="status ${statusClass}">${message}</div>`;
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+        function showMessage(text, type) {
+            const messageDiv = document.getElementById('message');
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type}`;
+            messageDiv.style.display = 'block';
         }
 
-        function testExtensionPresence() {
-            logResult('🔍 Checking for News Copilot extension...', 'info');
-            
-            // Check if extension injected any scripts
-            const scripts = document.querySelectorAll('script[src*="extension"]');
-            const extensionElements = document.querySelectorAll('[id*="news-copilot"], [class*="news-copilot"]');
-            
-            if (scripts.length > 0 || extensionElements.length > 0) {
-                logResult('✅ Extension elements detected on page', 'success');
-            } else {
-                logResult('❌ No extension elements found. Make sure extension is loaded and this page matches a supported domain.', 'error');
-            }
-            
-            // Check for content script injection
-            if (window.newsCopilotExtension) {
-                logResult('✅ News Copilot content script detected', 'success');
-            } else {
-                logResult('⚠️ Content script not detected', 'warning');
-            }
+        function updateDebug(text) {
+            const debugDiv = document.getElementById('debugText');
+            debugDiv.innerHTML += '<br>' + new Date().toLocaleTimeString() + ': ' + text;
         }
 
-        function testBackendConnection() {
-            logResult('🌐 Testing backend connection...', 'info');
+        document.getElementById('authForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
             
-            fetch('http://localhost:8080/api/health')
-                .then(response => {
-                    if (response.ok) {
-                        logResult('✅ Backend connection successful', 'success');
-                        return response.json();
-                    } else {
-                        throw new Error(`HTTP ${response.status}`);
-                    }
-                })
-                .then(data => {
-                    logResult(`Backend status: ${JSON.stringify(data)}`, 'info');
-                })
-                .catch(error => {
-                    logResult(`❌ Backend connection failed: ${error.message}`, 'error');
-                    logResult('Make sure your backend is running at http://localhost:8080', 'warning');
-                });
-        }
-
-        function simulateAuthFlow() {
-            logResult('🔐 Simulating authentication flow...', 'info');
+            const email = document.getElementById('email').value;
+            const submitBtn = document.getElementById('submitBtn');
             
-            const testEmail = `test_${Date.now()}@example.com`;
-            
-            // Simulate registration
-            fetch('http://localhost:8080/api/auth/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ email: testEmail })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.token) {
-                    logResult(`✅ Registration successful for ${testEmail}`, 'success');
-                    logResult(`Token received (first 20 chars): ${data.token.substring(0, 20)}...`, 'info');
-                    
-                    // Store token for further tests
-                    window.testToken = data.token;
-                    
-                    // Test profile endpoint
-                    return fetch('http://localhost:8080/api/auth/profile', {
-                        headers: {
-                            'Authorization': `Bearer ${data.token}`
-                        }
-                    });
-                } else {
-                    throw new Error('No token received');
-                }
-            })
-            .then(response => response.json())
-            .then(profile => {
-                logResult(`✅ Profile retrieved: Tier ${profile.tier}, Usage ${profile.usage_this_month}`, 'success');
-            })
-            .catch(error => {
-                logResult(`❌ Auth flow failed: ${error.message}`, 'error');
-            });
-        }
-
-        function testAnalysisRequest() {
-            if (!window.testToken) {
-                logResult('❌ No auth token available. Run auth flow test first.', 'error');
+            if (!email) {
+                showMessage('Please enter your email', 'error');
                 return;
             }
-            
-            logResult('🧠 Testing analysis request...', 'info');
-            
-            fetch('http://localhost:8080/deep-analysis', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${window.testToken}`
-                },
-                body: JSON.stringify({
-                    article_url: window.location.href,
-                    analysis_type: 'jargon'
-                })
-            })
-            .then(response => {
-                if (response.ok) {
-                    logResult('✅ Analysis request successful', 'success');
-                    return response.json();
-                } else {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-            })
-            .then(data => {
-                logResult(`Analysis completed with ${Object.keys(data).length} results`, 'info');
-            })
-            .catch(error => {
-                logResult(`❌ Analysis request failed: ${error.message}`, 'error');
-            });
-        }
 
-        // Auto-run basic tests on page load
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                testExtensionPresence();
-                testBackendConnection();
-            }, 1000);
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending...';
+            updateDebug(`Attempting to send magic link to: ${email}`);
+            
+            try {
+                updateDebug('Calling supabase.auth.signInWithOtp...');
+                
+                const { data, error } = await supabase.auth.signInWithOtp({
+                    email: email,
+                    options: {
+                        emailRedirectTo: `${BACKEND_URL}/auth/callback`
+                    }
+                });
+                
+                updateDebug(`Response data: ${JSON.stringify(data)}`);
+                
+                if (error) {
+                    updateDebug(`Error: ${JSON.stringify(error)}`);
+                    throw error;
+                }
+                
+                showMessage('Magic link sent! Check your email.', 'success');
+                updateDebug('Magic link sent successfully!');
+                
+            } catch (error) {
+                console.error('Error:', error);
+                updateDebug(`Caught error: ${error.message}`);
+                showMessage(`Σφάλμα δικτύου: ${error.message}`, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Send Magic Link';
+            }
         });
+
+        // Test connectivity
+        updateDebug('Testing Supabase connectivity...');
+        try {
+            const { data, error } = await supabase.auth.getSession();
+            updateDebug(`Session check result: ${error ? 'Error: ' + error.message : 'OK'}`);
+        } catch (e) {
+            updateDebug(`Session check failed: ${e.message}`);
+        }
     </script>
 </body>
 </html>

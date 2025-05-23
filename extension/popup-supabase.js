@@ -1,15 +1,72 @@
 // extension/popup-supabase.js
-// Popup script for Supabase authentication
+// Popup script for Supabase authentication - Chrome Extension compatible
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.0'
-
-// Configuration - Replace with your actual Supabase credentials
-const SUPABASE_URL = 'https://your-project.supabase.co'
-const SUPABASE_ANON_KEY = 'your-anon-key'
+// Configuration - Your actual Supabase credentials
+const SUPABASE_URL = 'https://zzweleyslkxemrwmlbri.supabase.co'
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp6d2VsZXlzbGt4ZW1yd21sYnJpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwMTY5MzMsImV4cCI6MjA2MzU5MjkzM30.5-N5bCXYc_uBr-1EQsUajyp-UXxZW_s3BIXJm-GS1ek'
 const BACKEND_URL = 'https://news-copilot.vercel.app'
 
+// Simple Supabase client replacement for Chrome extension
+class SimpleSupabaseClient {
+    constructor(url, key) {
+        this.url = url;
+        this.key = key;
+    }
+
+    async signInWithOtp(options) {
+        try {
+            const response = await fetch(`${this.url}/auth/v1/otp`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'apikey': this.key,
+                    'Authorization': `Bearer ${this.key}`
+                },
+                body: JSON.stringify({
+                    email: options.email,
+                    options: options.options || {}
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.msg || `HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+            return { data, error: null };
+        } catch (error) {
+            return { data: null, error };
+        }
+    }
+
+    async getSession() {
+        try {
+            // For now, just return empty session since we're using magic links
+            return { data: { session: null }, error: null };
+        } catch (error) {
+            return { data: { session: null }, error };
+        }
+    }
+
+    // Auth state change listener (simplified)
+    onAuthStateChange(callback) {
+        // For now, we'll implement this as needed
+        return { data: { subscription: null } };
+    }
+
+    get auth() {
+        return {
+            signInWithOtp: this.signInWithOtp.bind(this),
+            getSession: this.getSession.bind(this),
+            onAuthStateChange: this.onAuthStateChange.bind(this),
+            signOut: async () => ({ error: null })
+        };
+    }
+}
+
 // Initialize Supabase client
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+const supabase = new SimpleSupabaseClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 class NewscopilotAuth {
     constructor() {
@@ -52,19 +109,6 @@ class NewscopilotAuth {
         this.backToLoginButton.addEventListener('click', () => this.showLoginForm());
         this.logoutButton.addEventListener('click', () => this.signOut());
         this.apiKeyButton.addEventListener('click', () => this.updateApiKey());
-        
-        // Listen for auth state changes
-        supabase.auth.onAuthStateChange((event, session) => {
-            console.log('Auth state changed:', event, session);
-            this.currentSession = session;
-            this.currentUser = session?.user || null;
-            
-            if (event === 'SIGNED_IN') {
-                this.onSignIn(session);
-            } else if (event === 'SIGNED_OUT') {
-                this.onSignOut();
-            }
-        });
         
         // Listen for Enter key in email input
         this.emailInput.addEventListener('keypress', (e) => {
@@ -129,7 +173,7 @@ class NewscopilotAuth {
             
         } catch (error) {
             console.error('Error sending magic link:', error);
-            this.showMessage(`Σφάλμα: ${error.message}`, 'error');
+            this.showMessage(`Σφάλμα δικτύου: ${error.message}`, 'error');
         } finally {
             this.setLoading(this.magicLinkButton, false);
         }
