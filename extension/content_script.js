@@ -38,6 +38,45 @@ augmentButton.style.cssText = `
 `;
 document.body.appendChild(augmentButton);
 
+// --- Create Clean Website Button ---
+const cleanWebsiteButton = document.createElement("button");
+cleanWebsiteButton.id = "clean-website-button";
+cleanWebsiteButton.innerHTML = `
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+    <circle cx="12" cy="12" r="3"></circle>
+  </svg>
+  <span>Καθαρή Προβολή</span>
+`;
+cleanWebsiteButton.style.cssText = `
+  position: fixed;
+  bottom: 30px;
+  right: 200px; /* To the left of augmentButton */
+  padding: 12px 18px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  z-index: 9999;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+`;
+document.body.appendChild(cleanWebsiteButton);
+
+// Event listener for the new button
+cleanWebsiteButton.addEventListener('click', () => {
+    toggleReaderMode();
+});
+cleanWebsiteButton.setAttribute('data-listener-attached', 'true');
+
+
 // --- Advanced CSS Styles ---
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans:wght@400;500;600;700&display=swap');
@@ -47,6 +86,12 @@ const styles = `
     transform: translateY(-3px) scale(1.02);
     box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4);
     background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+  }
+
+  #clean-website-button:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 10px 30px rgba(16, 185, 129, 0.4);
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
   }
   
   #augment-article-button:disabled {
@@ -1957,7 +2002,30 @@ function toggleReaderMode() {
 function enterReaderMode() {
     // Save original state
     originalPageState = {
-        bodyHTML: document.body.innerHTML,
+        sidebarOpen: false, // Default to false
+        bodyMarginRight: '',
+        statusDisplayHTML: null,
+        statusDisplayStyle: null,
+        // bodyHTML, bodyClass, bodyStyle, htmlClass, title are saved later
+    };
+
+    // Save Sidebar State
+    if (intelligenceSidebar) {
+        if (intelligenceSidebar.classList.contains('open')) {
+            originalPageState.sidebarOpen = true;
+            originalPageState.bodyMarginRight = document.body.style.marginRight;
+        }
+        intelligenceSidebar.style.display = 'none'; // Hide before saving bodyHTML
+    }
+
+    // Save Status Display State
+    if (statusDisplay && statusDisplay.style.display !== 'none') {
+        originalPageState.statusDisplayHTML = statusDisplay.innerHTML;
+        originalPageState.statusDisplayStyle = statusDisplay.style.display;
+        statusDisplay.style.display = 'none'; // Hide before saving bodyHTML
+    }
+
+    originalPageState.bodyHTML = document.body.innerHTML;
         bodyClass: document.body.className,
         bodyStyle: document.body.getAttribute('style') || '',
         htmlClass: document.documentElement.className,
@@ -1977,6 +2045,9 @@ function enterReaderMode() {
     
     // Update toggle button
     updateReaderModeButton(true);
+    // Hide the floating buttons when reader mode is active
+    if (augmentButton) augmentButton.style.display = 'none';
+    if (cleanWebsiteButton) cleanWebsiteButton.style.display = 'none';
     
     // Show success notification
     showReaderModeNotification("📖 Καθαρή προβολή ενεργοποιήθηκε");
@@ -2003,6 +2074,9 @@ function exitReaderMode() {
     
     // Show notification
     showReaderModeNotification("🌐 Κανονική προβολή αποκαταστάθηκε");
+    // Restore floating buttons' display style
+    if (augmentButton) augmentButton.style.display = 'flex';
+    if (cleanWebsiteButton) cleanWebsiteButton.style.display = 'flex';
 }
 
 function extractCleanContent() {
@@ -2384,19 +2458,166 @@ function updateReaderModeButton(isActive) {
 function reinjectExtensionElements() {
     // Re-add our extension elements after exiting reader mode
     setTimeout(() => {
-        // Re-inject the augment button
-        if (!document.getElementById('augment-article-button')) {
-            document.body.appendChild(augmentButton);
+        // --- 1. Re-inject Styles ---
+        let styleTagInHead = document.head.querySelector('style[data-news-copilot="true"]');
+        if (!styleTagInHead) {
+            styleTagInHead = document.createElement("style");
+            styleTagInHead.type = "text/css";
+            styleTagInHead.setAttribute('data-news-copilot', 'true');
+            // 'styles' and 'additionalStyles' are global constants with the CSS strings
+            styleTagInHead.innerText = styles + additionalStyles; 
+            document.head.appendChild(styleTagInHead);
+        }
+
+        // --- 2. Re-inject Floating Buttons & Their Listeners ---
+        let currentAugmentButton = document.getElementById('augment-article-button');
+        if (!currentAugmentButton) {
+            document.body.appendChild(augmentButton); 
+            currentAugmentButton = augmentButton; 
+        }
+        if (!currentAugmentButton.hasAttribute('data-listener-attached')) {
+            currentAugmentButton.addEventListener("click", () => { 
+                // Main click handler for augmentButton (Copied from original code)
+                console.log("Κλικ στο κουμπί ανάλυσης άρθρου.");
+                currentAugmentButton.querySelector("span").textContent = "Αναλύεται...";
+                currentAugmentButton.classList.add('processing');
+                currentAugmentButton.disabled = true;
+                updateStatusDisplay("Σύνδεση με την υπηρεσία AI...");
+                const articleUrl = window.location.href;
+                window.currentArticleUrl = articleUrl;
+                chrome.runtime.sendMessage({ type: "AUGMENT_ARTICLE", url: articleUrl }, (response) => {
+                    currentAugmentButton.querySelector("span").textContent = "Ανάλυση Άρθρου";
+                    currentAugmentButton.classList.remove('processing');
+                    currentAugmentButton.disabled = false;
+                    updateStatusDisplay(null);
+                    if (chrome.runtime.lastError) {
+                        console.error("Σφάλμα αποστολής μηνύματος:", chrome.runtime.lastError.message);
+                        updateStatusDisplay(`Σφάλμα: ${chrome.runtime.lastError.message}`);
+                        const contentPanel = createIntelligenceSidebar(); 
+                        const errorState = document.createElement('div');
+                        errorState.className = 'empty-state';
+                        errorState.innerHTML = `<h3>Σφάλμα επικοινωνίας</h3><p>Δεν ήταν δυνατή η σύνδεση.</p>`;
+                        contentPanel.appendChild(errorState);
+                        if(intelligenceSidebar) intelligenceSidebar.classList.add('open');
+                        if (window.innerWidth > 768 && intelligenceSidebar) document.body.style.marginRight = originalPageState.bodyMarginRight ||'420px';
+                        return;
+                    }
+                    const contentPanel = createIntelligenceSidebar(); 
+                    if (response && response.success) {
+                        updateStatusDisplay("Επεξεργασία insights...");
+                        currentData = response; // Update currentData
+                        renderOverview(response.jargon, response.viewpoints, contentPanel);
+                        renderTerms(response.jargon, response.jargon_citations, contentPanel);
+                        renderViewpoints(response.viewpoints, response.viewpoints_citations, contentPanel);
+                        if(intelligenceSidebar) intelligenceSidebar.classList.add('open');
+                        if (window.innerWidth > 768 && intelligenceSidebar) document.body.style.marginRight = originalPageState.bodyMarginRight ||'420px';
+                        updateStatusDisplay(null);
+                    } else {
+                        const errorMsg = response ? response.error : "Άγνωστο σφάλμα";
+                        updateStatusDisplay(`Αποτυχία: ${errorMsg}`);
+                        const errorState = document.createElement('div');
+                        errorState.className = 'empty-state';
+                        errorState.innerHTML = `<h3>Αποτυχία ανάλυσης</h3><p>${errorMsg}</p>`;
+                        contentPanel.appendChild(errorState);
+                        if(intelligenceSidebar) intelligenceSidebar.classList.add('open');
+                        if (window.innerWidth > 768 && intelligenceSidebar) document.body.style.marginRight = originalPageState.bodyMarginRight ||'420px';
+                    }
+                });
+            });
+            currentAugmentButton.setAttribute('data-listener-attached', 'true');
+        }
+        currentAugmentButton.style.display = 'flex'; // Ensure visible
+
+        let currentCleanButton = document.getElementById('clean-website-button');
+        if (!currentCleanButton) {
+            document.body.appendChild(cleanWebsiteButton); 
+            currentCleanButton = cleanWebsiteButton; 
+        }
+        if (!currentCleanButton.hasAttribute('data-listener-attached')) {
+             currentCleanButton.addEventListener('click', () => {
+                toggleReaderMode();
+            });
+            currentCleanButton.setAttribute('data-listener-attached', 'true');
+        }
+        currentCleanButton.style.display = 'flex'; // Ensure visible
+
+        // --- 3. Restore Intelligence Sidebar ---
+        let restoredSidebar = document.querySelector('.news-intelligence-sidebar');
+        if (originalPageState.sidebarOpen) {
+            if (!restoredSidebar) {
+                // If not found, create it (createIntelligenceSidebar appends to body and reassigns global intelligenceSidebar)
+                createIntelligenceSidebar(); 
+                // window.intelligenceSidebar is now the new sidebar
+            } else {
+                 window.intelligenceSidebar = restoredSidebar; // Point global var to the found one
+            }
+
+            // At this point, window.intelligenceSidebar should be the correct DOM element (either found or newly created)
+            if (window.intelligenceSidebar) {
+                window.intelligenceSidebar.style.display = ''; // Make sure it's not display:none
+                window.intelligenceSidebar.classList.add('open');
+                document.body.style.marginRight = originalPageState.bodyMarginRight || (window.innerWidth > 768 ? '420px' : '0px');
+                
+                const closeButton = window.intelligenceSidebar.querySelector('.sidebar-close');
+                if (closeButton && !closeButton.hasAttribute('data-listener-attached')) {
+                    closeButton.onclick = () => {
+                        window.intelligenceSidebar.classList.remove('open'); // Use global var
+                        setTimeout(() => {
+                            if (window.intelligenceSidebar && !window.intelligenceSidebar.classList.contains('open')) {
+                                document.body.style.marginRight = '0';
+                            }
+                        }, 400);
+                    };
+                    closeButton.setAttribute('data-listener-attached', 'true');
+                }
+
+                // Re-render sidebar content
+                const contentPanel = window.intelligenceSidebar.querySelector('.sidebar-content');
+                if (contentPanel) {
+                    contentPanel.innerHTML = ''; // Clear previous content
+                    if (currentData) { // currentData should be available globally
+                        renderOverview(currentData.jargon, currentData.viewpoints, contentPanel);
+                        renderTerms(currentData.jargon, currentData.jargon_citations, contentPanel);
+                        renderViewpoints(currentData.viewpoints, currentData.viewpoints_citations, contentPanel);
+                    } else {
+                        // Handle case where currentData is null (e.g. show empty state or error)
+                         const emptyState = document.createElement('div');
+                         emptyState.className = 'empty-state';
+                         emptyState.innerHTML = `<p>Δεδομένα ανάλυσης μη διαθέσιμα για την επαναφορά της πλευρικής στήλης.</p>`;
+                         contentPanel.appendChild(emptyState);
+                    }
+                }
+            }
+        } else if (restoredSidebar) { // Sidebar was not open, but exists in DOM
+             window.intelligenceSidebar = restoredSidebar; // Ensure global var is set
+             restoredSidebar.style.display = ''; // Ensure visible if it was hidden
+             restoredSidebar.classList.remove('open'); // Ensure it's closed
+        } else {
+            // Sidebar was not open and not in DOM, optionally recreate it in a hidden state
+            // createIntelligenceSidebar(); // Creates and appends, global intelligenceSidebar is set
+            // if (window.intelligenceSidebar) window.intelligenceSidebar.style.display = 'none'; // Keep it hidden
+        }
+
+
+        // --- 4. Restore Status Display ---
+        if (originalPageState.statusDisplayHTML && originalPageState.statusDisplayStyle) {
+            let restoredStatusDisplay = document.querySelector('.intelligence-status');
+            if (!restoredStatusDisplay) {
+                window.statusDisplay = document.createElement('div'); // Assign to global
+                window.statusDisplay.className = 'intelligence-status';
+                document.body.appendChild(window.statusDisplay);
+            } else {
+                window.statusDisplay = restoredStatusDisplay; // Assign found element to global
+            }
+            window.statusDisplay.innerHTML = originalPageState.statusDisplayHTML;
+            window.statusDisplay.style.display = originalPageState.statusDisplayStyle;
+        } else if (window.statusDisplay) { // if global var exists but wasn't saved (was hidden)
+            window.statusDisplay.style.display = 'none';
         }
         
-        // Re-inject styles
-        if (!document.querySelector('style[data-news-copilot]')) {
-            const newStyleSheet = document.createElement("style");
-            newStyleSheet.type = "text/css";
-            newStyleSheet.setAttribute('data-news-copilot', 'true');
-            newStyleSheet.innerText = existingStyleSheet.innerText;
-            document.head.appendChild(newStyleSheet);
-        }
+        // Call handleResize to ensure correct body margin if sidebar is open on mobile/desktop
+        handleResize();
+
     }, 100);
 }
 
