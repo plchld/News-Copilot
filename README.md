@@ -17,15 +17,14 @@
 ## 🏗️ Αρχιτεκτονική
 
 ### Frontend - Chrome Extension
-- **Revolutionary Sidebar UI** - Ευφυής πλαϊνή μπάρα που δεν καλύπτει το περιεχόμενο
+- **Sidebar UI** - Ευφυής πλαϊνή μπάρα που δεν καλύπτει το περιεχόμενο
 - **Progressive Intelligence** - Γρήγορα αρχικά αποτελέσματα με επιλογή για βαθύτερη ανάλυση
-- **Modern Greek Design** - Πλήρης ελληνική εντοπίου με Inter/Noto Sans fonts
 - **Reader Mode** - Αφαιρεί διαφημίσεις και ακαταστατότητα για καθαρή ανάγνωση
 
 ### Backend - Python Flask + Grok API
 - **Intelligent Processing** - Εξαγωγή άρθρων με trafilatura
 - **Multi-Modal Analysis** - Βασική ανάλυση + 4 βαθιές αναλύσεις
-- **Live Search Integration** - Χρήση Grok API με πραγματικό χρόνο αναζήτηση
+- **Live Search Integration** - Χρήση Grok API Live search
 - **Citation Management** - Αυτόματη εξαγωγή και επαλήθευση πηγών
 
 ## 🚀 Λειτουργίες
