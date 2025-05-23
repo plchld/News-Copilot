@@ -3,7 +3,7 @@ console.log("Article Augmentor background script loaded.");
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "AUGMENT_ARTICLE") {
     console.log("Background: Received AUGMENT_ARTICLE message with URL:", message.url);
-    const flaskServerStreamUrl = `http://localhost:8080/augment-stream?url=${encodeURIComponent(message.url)}`;
+    const flaskServerStreamUrl = `https://news-copilot.vercel.app/augment-stream?url=${encodeURIComponent(message.url)}`;
 
     // Use EventSource to connect to the SSE endpoint
     const eventSource = new EventSource(flaskServerStreamUrl);
@@ -61,7 +61,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log("Background: Received DEEP_ANALYSIS message:", message);
     
     // Call the Python Flask server for deep analysis
-    const flaskDeepAnalysisUrl = 'http://localhost:8080/deep-analysis';
+    const flaskDeepAnalysisUrl = 'https://news-copilot.vercel.app/deep-analysis';
     
     const requestData = {
       url: message.url,
