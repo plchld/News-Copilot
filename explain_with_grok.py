@@ -183,10 +183,10 @@ CORS(app)             # Enable CORS
 
 # Import and register auth blueprints
 try:
-    from api.supabase_auth import supabase_auth_bp, require_supabase_auth as require_auth
-    app.register_blueprint(supabase_auth_bp)
+    from api.http_supabase import http_supabase_bp, require_http_supabase_auth as require_auth
+    app.register_blueprint(http_supabase_bp)
     AUTH_ENABLED = True
-    print("✅ Supabase authentication enabled")
+    print("✅ HTTP Supabase authentication enabled")
 except ImportError as e:
     print(f"⚠️ Supabase auth not available: {e}")
     print("Running without authentication")
