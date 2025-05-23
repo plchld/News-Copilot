@@ -6,7 +6,8 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "nativeMessaging"
+    "nativeMessaging",
+    "storage"
   ],
   "host_permissions": [
     "https://news-copilot.vercel.app/*"
@@ -71,6 +72,7 @@
     }
   ],
   "action": {
-    "default_title": "Augment Article"
+    "default_title": "News Copilot",
+    "default_popup": "popup.html"
   }
 } 

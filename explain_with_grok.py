@@ -181,6 +181,23 @@ def get_augmentations_stream(article_url: str) -> Generator[str, None, None]:
 app = Flask(__name__) # Ensure Flask app is initialized
 CORS(app)             # Enable CORS
 
+# Import and register auth blueprints
+try:
+    from api.auth_routes import auth_bp
+    from api.admin import admin_bp
+    from api.simple_auth import require_auth  # Use simple auth for Vercel
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
+    AUTH_ENABLED = True
+except ImportError:
+    print("Auth system not available - running without authentication")
+    AUTH_ENABLED = False
+    # Mock decorator for local development
+    def require_auth(analysis_type='basic_analysis'):
+        def decorator(f):
+            return f
+        return decorator
+
 @app.route('/', methods=['GET'])
 def home():
     """Health check and API info endpoint"""
@@ -200,6 +217,7 @@ def home():
     })
 
 @app.route('/augment-stream', methods=['GET'])
+@require_auth('basic_analysis')
 def augment_article_stream_route():
     print("\n[Flask /augment-stream] Received stream request!", flush=True)
     article_url = request.args.get('url')
@@ -214,6 +232,7 @@ def augment_article_stream_route():
     return Response(stream_with_context(get_augmentations_stream(article_url)), mimetype='text/event-stream')
 
 @app.route('/deep-analysis', methods=['POST'])
+@require_auth('deep_analysis')
 def deep_analysis_route():
     """Handle deep analysis requests for fact-checking, bias analysis, timeline, and expert opinions."""
     print("\n[Flask /deep-analysis] Received deep analysis request!", flush=True)

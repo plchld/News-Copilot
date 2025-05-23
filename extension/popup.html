@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Copilot</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            width: 350px;
+            background: #f8fafc;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            margin: 5px 0 0 0;
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .auth-section {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .auth-status {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .auth-status.authenticated {
+            color: #10b981;
+        }
+        
+        .auth-status.unauthenticated {
+            color: #ef4444;
+        }
+        
+        .email-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+            box-sizing: border-box;
+        }
+        
+        .auth-button {
+            width: 100%;
+            padding: 12px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .auth-button:hover {
+            background: #5a67d8;
+        }
+        
+        .usage-stats {
+            margin-top: 20px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        
+        .usage-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .usage-bar {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            margin-top: 4px;
+            overflow: hidden;
+        }
+        
+        .usage-fill {
+            height: 100%;
+            background: #667eea;
+            transition: width 0.3s;
+        }
+        
+        .tier-info {
+            text-align: center;
+            margin-top: 16px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        
+        .upgrade-button {
+            display: inline-block;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        
+        .byok-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+        
+        .byok-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: monospace;
+            margin-top: 8px;
+            box-sizing: border-box;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #6b7280;
+        }
+        
+        .error {
+            color: #ef4444;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        
+        .success {
+            color: #10b981;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>News Copilot</h1>
+        <p>Ελληνική ανάλυση ειδήσεων με AI</p>
+    </div>
+    
+    <div class="content">
+        <div class="auth-section">
+            <!-- Login Form -->
+            <div id="loginForm" class="hidden">
+                <h3>Σύνδεση / Εγγραφή</h3>
+                <p style="font-size: 12px; color: #6b7280; margin-bottom: 16px;">
+                    Εισάγετε το email σας για να ξεκινήσετε
+                </p>
+                <input type="email" id="emailInput" class="email-input" placeholder="your@email.com">
+                <button id="authButton" class="auth-button">Συνέχεια</button>
+                <div id="authError" class="error hidden"></div>
+            </div>
+            
+            <!-- Authenticated View -->
+            <div id="authenticatedView" class="hidden">
+                <div class="auth-status authenticated">
+                    ✓ Συνδεδεμένος
+                </div>
+                <div id="userEmail" style="text-align: center; font-size: 14px; color: #6b7280; margin-bottom: 20px;"></div>
+                
+                <div class="usage-stats">
+                    <h4 style="margin: 0 0 12px 0; font-size: 14px;">Μηνιαία Χρήση</h4>
+                    
+                    <div class="usage-item">
+                        <span>Βασικές Αναλύσεις</span>
+                        <span id="basicUsage">0/10</span>
+                    </div>
+                    <div class="usage-bar">
+                        <div id="basicUsageBar" class="usage-fill" style="width: 0%"></div>
+                    </div>
+                    
+                    <div class="usage-item" style="margin-top: 12px;">
+                        <span>Εξειδικευμένες Αναλύσεις</span>
+                        <span id="deepUsage">0/0</span>
+                    </div>
+                    <div class="usage-bar">
+                        <div id="deepUsageBar" class="usage-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <div class="tier-info">
+                    <div id="tierName">Free Plan</div>
+                    <a href="https://news-copilot.vercel.app/pricing" target="_blank" class="upgrade-button">
+                        Αναβάθμιση Πλάνου →
+                    </a>
+                </div>
+                
+                <div class="byok-section">
+                    <h4 style="margin: 0 0 8px 0; font-size: 14px;">Χρήση Προσωπικού API Key</h4>
+                    <p style="font-size: 12px; color: #6b7280; margin: 0 0 8px 0;">
+                        Έχετε Grok API key; Χρησιμοποιήστε το για απεριόριστη χρήση
+                    </p>
+                    <input type="password" id="apiKeyInput" class="byok-input" placeholder="xai-...">
+                    <button id="apiKeyButton" class="auth-button" style="margin-top: 8px;">
+                        Αποθήκευση API Key
+                    </button>
+                    <div id="apiKeyStatus" class="hidden"></div>
+                </div>
+                
+                <button id="logoutButton" class="auth-button" style="margin-top: 20px; background: #ef4444;">
+                    Αποσύνδεση
+                </button>
+            </div>
+            
+            <!-- Loading State -->
+            <div id="loadingView" class="loading">
+                <p>Φόρτωση...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>
