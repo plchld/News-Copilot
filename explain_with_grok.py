@@ -181,6 +181,24 @@ def get_augmentations_stream(article_url: str) -> Generator[str, None, None]:
 app = Flask(__name__) # Ensure Flask app is initialized
 CORS(app)             # Enable CORS
 
+@app.route('/', methods=['GET'])
+def home():
+    """Health check and API info endpoint"""
+    return jsonify({
+        "service": "News Copilot API",
+        "status": "running",
+        "version": "1.0.0",
+        "endpoints": {
+            "/": "This health check",
+            "/augment-stream": "GET - Stream article analysis with jargon and viewpoints",
+            "/deep-analysis": "POST - Deep analysis (fact-check, bias, timeline, expert opinions)"
+        },
+        "usage": {
+            "augment-stream": "GET /?url=<article_url>",
+            "deep-analysis": "POST with JSON body: {url, analysisType, searchParams}"
+        }
+    })
+
 @app.route('/augment-stream', methods=['GET'])
 def augment_article_stream_route():
     print("\n[Flask /augment-stream] Received stream request!", flush=True)
