@@ -7,7 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 News Copilot is a Greek news intelligence platform with AI-powered contextual analysis. The system consists of:
 
 **Frontend**: Chrome extension (`extension/`) with progressive sidebar UI that provides non-intrusive article analysis
-**Backend**: Python Flask server (`explain_with_grok.py`) with Grok AI integration for live search and structured analysis
+**Backend**: Python Flask API deployed on Vercel (`api/index.py`) with Grok AI integration for live search and structured analysis
+**Authentication**: Supabase-based auth system with magic links, JWT tokens, and rate limiting
 **Content Processing**: Trafilatura-based article extraction supporting 50+ Greek news sites
 
 The architecture uses Server-Sent Events (SSE) for real-time progress updates and structured JSON schemas for AI responses.
@@ -19,17 +20,22 @@ The architecture uses Server-Sent Events (SSE) for real-time progress updates an
 # Install dependencies
 pip install -r requirements.txt
 
-# Set up environment
-echo "XAI_API_KEY=your_key_here" > .env
+# Set up environment variables
+cp .env.example .env  # Then edit with your keys
+# Required: XAI_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY
 
-# Start development server
+# Start local development server
 python explain_with_grok.py --server
 
 # CLI testing mode
 python explain_with_grok.py <article_url>
 
-# Test site accessibility
-python test_sites.py
+# Test authentication system
+python test_auth_system.py
+
+# Test Supabase integration
+python test_supabase_simple.py
+python test_http_supabase.py
 ```
 
 ### Chrome Extension Development
@@ -41,15 +47,37 @@ python test_sites.py
 
 # Test on Greek news sites
 # Visit any supported site from manifest.json matches[]
+# Extension uses popup-supabase.html for auth
 ```
 
 ### Testing
 ```bash
+# Run all tests with coverage
+python run_tests.py
+# or
+pytest --cov=api --cov-report=term-missing
+
+# Run specific test module
+pytest tests/test_article_extractor.py -v
+
+# Run specific test class or function
+pytest tests/test_routes.py::TestRoutes::test_home_api_request -v
+
+# Run tests with specific markers
+pytest -m "not slow"  # Skip slow tests
+pytest -m unit        # Run only unit tests
+
 # Test supported sites configuration
 python test_sites.py
 
 # Robust site testing with error handling
 python test_sites_robust.py
+
+# Test authentication endpoints
+python test_auth_system.py
+
+# Setup test environment
+python setup_test_env.py
 ```
 
 ## Key Technical Details
@@ -59,15 +87,23 @@ python test_sites_robust.py
 - **Response Formats**: JSON schemas for structured data (jargon, fact-check, bias, timeline, expert opinions)
 - **Error Handling**: Comprehensive APIStatusError and connection error handling
 
+### Authentication System (Supabase)
+- **Magic Link Auth**: Email-based authentication without passwords
+- **JWT Tokens**: Secure token validation using PyJWT
+- **Rate Limiting**: 10 free analyses/month, 50 for premium, unlimited for admin
+- **User Tiers**: free, premium, admin with different rate limits
+- **Database Schema**: See `supabase_schema.sql` for complete structure
+
 ### Content Processing
 - **Article Extraction**: Trafilatura with fallback mechanisms for complex sites
 - **Greek Language**: All prompts and responses in Greek with proper Unicode handling
 - **Citation Tracking**: Automatic source verification and URL validation
 
-### Extension Communication
-- **SSE Streaming**: Real-time progress updates via `/augment-stream` endpoint
-- **Deep Analysis**: POST requests to `/deep-analysis` with analysis_type parameter
-- **CORS Setup**: Configured for localhost:8080 communication
+### API Endpoints
+- **Auth Routes**: `/api/auth/login`, `/api/auth/profile`, `/api/auth/logout`
+- **Analysis Routes**: `/augment`, `/augment-stream`, `/deep-analysis`
+- **Admin Routes**: `/api/admin/*` (requires admin auth)
+- **CORS Setup**: Configured for Vercel deployment and localhost:8080
 
 ### Prompt System
 All AI prompts are centralized in `prompts.py`:
@@ -79,9 +115,11 @@ All AI prompts are centralized in `prompts.py`:
 - `GROK_EXPERT_OPINIONS_PROMPT`: Expert quote collection with source validation
 
 ### Chrome Extension Structure
-- **manifest.json**: Configured for 50+ Greek news sites with specific domain matches
+- **manifest.json**: Configured for 50+ Greek news sites with Supabase permissions
 - **content_script.js**: Complete UI implementation with sidebar and reader mode
 - **background.js**: Service worker for API communication and message handling
+- **popup-supabase.html/js**: Authentication UI with magic link support
+- **js/supabase-auth.js**: Supabase client configuration
 
 ## Supported Sites
 
@@ -98,14 +136,21 @@ Site configuration is automatically tested with `test_sites.py` for accessibilit
 
 ### Environment Variables
 - `XAI_API_KEY`: Required for Grok AI API access
-- `FLASK_PORT`: Optional, defaults to 8080
+- `SUPABASE_URL`: Your Supabase project URL
+- `SUPABASE_ANON_KEY`: Public Supabase key for client access
+- `SUPABASE_SERVICE_KEY`: Service role key for admin operations
+- `BASE_URL`: API base URL (https://news-copilot.vercel.app for production)
+- `FLASK_PORT`: Optional, defaults to 8080 for local dev
 - `DEBUG_MODE`: Optional development flag
 
 ### Extension Permissions
 - `activeTab`: Access to current tab content
 - `scripting`: Content script injection
 - `nativeMessaging`: Future integration capability
-- `http://localhost:8080/*`: Backend API communication
+- `storage`: Local storage for auth tokens
+- `http://localhost:8080/*`: Local backend API communication
+- `https://*.supabase.co/*`: Supabase authentication
+- `https://news-copilot.vercel.app/*`: Production API
 
 ## Development Workflow
 
@@ -125,3 +170,23 @@ When modifying AI prompts:
 - Include @username references for X/Twitter content
 - Validate JSON schema compatibility
 - Test with live search enabled
+
+When deploying to production:
+1. Ensure all environment variables are set in Vercel
+2. Test authentication flow with `test_auth_system.py`
+3. Verify Supabase RLS policies are active
+4. Update extension to use production API URL
+
+## Deployment Details
+
+### Vercel Deployment
+- **Entry Point**: `api/index.py` handles all routes
+- **Build Config**: See `vercel.json` for Lambda configuration
+- **Environment**: Set all required env vars in Vercel dashboard
+- **Domain**: Configure custom domain or use default .vercel.app
+
+### Supabase Setup
+- **Documentation**: Complete setup guide in `SUPABASE_SETUP.md`
+- **Schema**: Run `supabase_schema.sql` to create tables and RLS policies
+- **Email Templates**: Configure in Supabase dashboard for magic links
+- **Admin Setup**: Use `setup_admin.py` to create initial admin user

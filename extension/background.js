@@ -110,12 +110,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Since EventSource doesn't support headers, we'll use fetch with streaming
     const flaskServerUrl = `https://news-copilot.vercel.app/augment-stream?url=${encodeURIComponent(message.url)}`;
     
+    console.log("Background: Making API call to:", flaskServerUrl);
+    console.log("Background: Auth token present:", !!authState.token);
+    
     fetch(flaskServerUrl, {
       headers: {
         'Authorization': `Bearer ${authState.token}`
       }
     })
     .then(response => {
+      console.log("Background: Response status:", response.status);
+      console.log("Background: Response headers:", response.headers);
+      
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('AUTH_REQUIRED');
@@ -137,28 +143,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           }
 
           buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
+          const messages = buffer.split('\n\n');
+          buffer = messages.pop() || '';
 
-          for (const line of lines) {
-            if (line.startsWith('event:')) {
-              const eventType = line.substring(6).trim();
-              
-              // Get the data line
-              const nextLine = lines[lines.indexOf(line) + 1];
-              if (nextLine && nextLine.startsWith('data:')) {
-                const data = JSON.parse(nextLine.substring(5).trim());
-                
-                if (eventType === 'progress' && sender.tab && sender.tab.id) {
-                  chrome.tabs.sendMessage(sender.tab.id, { 
-                    type: "PROGRESS_UPDATE", 
-                    status: data.status 
-                  });
-                } else if (eventType === 'final_result') {
-                  sendResponse({ success: true, data: data });
-                } else if (eventType === 'error') {
-                  sendResponse({ success: false, error: data.message });
+          for (const message of messages) {
+            if (!message.trim()) continue;
+            
+            const lines = message.split('\n');
+            let eventType = null;
+            let eventData = null;
+            
+            for (const line of lines) {
+              if (line.startsWith('event:')) {
+                eventType = line.substring(6).trim();
+              } else if (line.startsWith('data:')) {
+                try {
+                  eventData = JSON.parse(line.substring(5).trim());
+                } catch (e) {
+                  console.error("Failed to parse SSE data:", line);
                 }
+              }
+            }
+            
+            if (eventType && eventData) {
+              console.log(`Background: Processing event '${eventType}'`);
+              
+              if (eventType === 'progress' && sender.tab && sender.tab.id) {
+                chrome.tabs.sendMessage(sender.tab.id, { 
+                  type: "PROGRESS_UPDATE", 
+                  status: eventData.status 
+                }).catch(() => {}); // Ignore if tab is closed
+              } else if (eventType === 'final_result') {
+                console.log("Background: Received final result:", eventData);
+                sendResponse({ success: true, data: eventData });
+                reader.cancel(); // Stop reading after final result
+                return;
+              } else if (eventType === 'error') {
+                console.error("Background: Received error event:", eventData);
+                sendResponse({ success: false, error: eventData.message || "API error" });
+                reader.cancel();
+                return;
               }
             }
           }
@@ -166,7 +190,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           processStream();
         }).catch(error => {
           console.error("Stream reading error:", error);
-          sendResponse({ success: false, error: error.message });
+          if (error.name === 'AbortError') {
+            sendResponse({ success: false, error: "Η ανάλυση διακόπηκε" });
+          } else {
+            sendResponse({ success: false, error: `Σφάλμα ανάγνωσης: ${error.message}` });
+          }
         });
       }
 
@@ -174,6 +202,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     })
     .catch(error => {
       console.error("Fetch error:", error);
+      console.error("Error type:", error.name);
+      console.error("Error message:", error.message);
+      
       if (error.message === 'AUTH_REQUIRED') {
         clearAuthState(); // Clear invalid auth
         sendResponse({

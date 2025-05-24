@@ -2,7 +2,7 @@
 # User and subscription models
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr
 import psycopg2
 import psycopg2.extras
@@ -10,6 +10,14 @@ import os
 
 # Neon Postgres database URL from Vercel
 DATABASE_URL = os.getenv('DATABASE_URL')
+
+# ── Pydantic models for article analysis ──────────────────────────────
+class TermExplanation(BaseModel):
+    term: str
+    explanation: str
+
+class JargonResponse(BaseModel):
+    terms: List[TermExplanation]
 
 def get_db_connection():
     """Get database connection"""
