@@ -105,7 +105,12 @@ def deep_analysis_route():
         
         # Get analysis result
         result = analysis_handler.get_deep_analysis(article_url, analysis_type, search_params)
-        return jsonify({'success': True, 'data': result})
+        # Return in the format expected by frontend
+        return jsonify({
+            'success': True, 
+            'result': result['analysis'],
+            'citations': result['citations']
+        })
         
     except Exception as e:
         print(f"[Flask /deep-analysis] ERROR: {e}", flush=True)

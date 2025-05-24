@@ -5,6 +5,7 @@ Handles all interactions with the Grok AI API
 from typing import Dict, Any, List, Optional
 from openai import OpenAI, APIStatusError
 from .config import API_KEY, API_URL, MODEL
+from .search_params_builder import build_search_params
 
 
 class GrokClient:
@@ -70,6 +71,55 @@ class GrokClient:
             print(f"[GrokClient] ERROR: {error_message}", flush=True)
             raise RuntimeError(error_message)
     
+    def create_thinking_completion(
+        self,
+        prompt: str,
+        reasoning_effort: str = "low",
+        temperature: float = 0.3,
+        response_format: Optional[Dict[str, Any]] = None
+    ) -> Any:
+        """
+        Create a completion using Grok's thinking models (grok-3-mini).
+        
+        Args:
+            prompt: The prompt to send to Grok
+            reasoning_effort: "low" or "high" - controls thinking depth
+            temperature: Temperature for response generation
+            response_format: Optional response format specification
+            
+        Returns:
+            The completion response with reasoning_content available
+        """
+        try:
+            messages = [{"role": "user", "content": prompt}]
+            
+            params = {
+                "model": "grok-3-mini-fast",  # Thinking model
+                "messages": messages,
+                "temperature": temperature,
+                "extra_body": {"reasoning_effort": reasoning_effort}
+            }
+            
+            if response_format:
+                params["response_format"] = response_format
+                
+            completion = self.client.chat.completions.create(**params)
+            
+            # Log reasoning content if available
+            if hasattr(completion.choices[0].message, 'reasoning_content'):
+                print(f"[GrokClient] Reasoning: {completion.choices[0].message.reasoning_content[:200]}...")
+                
+            return completion
+            
+        except APIStatusError as e:
+            error_message = f"Grok thinking API error: Status {e.status_code}"
+            print(f"[GrokClient] THINKING API ERROR: {error_message}", flush=True)
+            raise
+        except Exception as e:
+            error_message = f"Error calling Grok thinking API: {type(e).__name__} - {e}"
+            print(f"[GrokClient] THINKING ERROR: {error_message}", flush=True)
+            raise RuntimeError(error_message)
+    
     @staticmethod
     def extract_citations(completion) -> List[str]:
         """
@@ -95,11 +145,9 @@ class GrokClient:
     @staticmethod
     def get_default_search_params() -> Dict[str, Any]:
         """Get default search parameters for live search"""
-        return {
-            "mode": "on",
-            "return_citations": True,
-            "sources": [
-                {"type": "web"},
-                {"type": "news"}
-            ]
-        }
+        return build_search_params(
+            mode="on",
+            country="GR",
+            language="el",
+            max_results=20
+        )

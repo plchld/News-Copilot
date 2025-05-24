@@ -158,12 +158,30 @@ class AnalysisHandler:
         # Prepare prompt
         prompt_content = prompt_map[analysis_type] + "\n\nΆρθρο:\n" + article_text
         
-        # Prepare search parameters
-        search_params_dict = {
-            "mode": search_params.get("mode", "on"),
-            "return_citations": True,
-            "sources": search_params.get("sources", [{"type": "web"}, {"type": "news"}])
-        }
+        # Import search params builder
+        from .search_params_builder import build_search_params
+        
+        # Build search parameters using the builder
+        # If searchParams provided by client, use them, otherwise use defaults
+        if search_params:
+            # Extract relevant fields from client searchParams
+            search_params_dict = build_search_params(
+                mode=search_params.get("mode", "on"),
+                sources=search_params.get("sources"),
+                country=search_params.get("country", "GR"),
+                language=search_params.get("language", "el"),
+                include_english=search_params.get("include_english", False),
+                from_date=search_params.get("from_date"),
+                to_date=search_params.get("to_date"),
+                max_results=search_params.get("max_results", 20),
+                safe_search=search_params.get("safe_search", True),
+                excluded_websites_map=search_params.get("excluded_websites_map"),
+                x_handles_for_x_source=search_params.get("x_handles_for_x_source"),
+                rss_links_for_rss_source=search_params.get("rss_links_for_rss_source")
+            )
+        else:
+            # Use default search params
+            search_params_dict = self.grok_client.get_default_search_params()
         
         # Define schemas for each analysis type
         schemas = self._get_analysis_schemas()
@@ -194,46 +212,54 @@ class AnalysisHandler:
             'fact-check': {
                 "type": "object",
                 "properties": {
+                    "overall_credibility": {"type": "string"},
                     "claims": {
                         "type": "array",
                         "items": {
                             "type": "object",
                             "properties": {
-                                "claim": {"type": "string"},
-                                "verdict": {"type": "string"},
-                                "evidence": {"type": "string"},
-                                "confidence": {"type": "string"},
+                                "statement": {"type": "string"},
+                                "verified": {"type": "boolean"},
+                                "explanation": {"type": "string"},
                                 "sources": {"type": "array", "items": {"type": "string"}}
                             }
                         }
                     },
-                    "overall_credibility": {"type": "string"},
                     "red_flags": {"type": "array", "items": {"type": "string"}},
-                    "verification_notes": {"type": "string"}
+                    "missing_context": {"type": "string"}
                 }
             },
             'bias': {
                 "type": "object",
                 "properties": {
                     "political_lean": {"type": "string"},
+                    "confidence": {"type": "string"},
                     "emotional_tone": {"type": "string"},
-                    "loaded_language": {"type": "array", "items": {"type": "string"}},
-                    "missing_perspectives": {"type": "array", "items": {"type": "string"}},
-                    "framing_analysis": {"type": "string"},
-                    "comparison_with_other_sources": {"type": "string"}
+                    "language_analysis": {
+                        "type": "object",
+                        "properties": {
+                            "loaded_words": {"type": "array", "items": {"type": "string"}},
+                            "framing": {"type": "string"},
+                            "missing_perspectives": {"type": "string"}
+                        }
+                    },
+                    "comparison": {"type": "string"},
+                    "recommendations": {"type": "string"}
                 }
             },
             'timeline': {
                 "type": "object",
                 "properties": {
+                    "story_title": {"type": "string"},
                     "events": {
                         "type": "array",
                         "items": {
                             "type": "object",
                             "properties": {
                                 "date": {"type": "string"},
-                                "event": {"type": "string"},
-                                "significance": {"type": "string"},
+                                "title": {"type": "string"},
+                                "description": {"type": "string"},
+                                "importance": {"type": "string"},
                                 "source": {"type": "string"}
                             }
                         }
@@ -245,6 +271,7 @@ class AnalysisHandler:
             'expert': {
                 "type": "object",
                 "properties": {
+                    "topic_summary": {"type": "string"},
                     "experts": {
                         "type": "array",
                         "items": {
