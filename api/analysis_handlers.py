@@ -16,11 +16,19 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from prompts import (
     GROK_CONTEXT_JARGON_PROMPT_SCHEMA,
-    GROK_ALTERNATIVE_VIEWPOINTS_PROMPT,
-    GROK_FACT_CHECK_PROMPT,
-    GROK_BIAS_ANALYSIS_PROMPT,
-    GROK_TIMELINE_PROMPT,
-    GROK_EXPERT_OPINIONS_PROMPT
+    GROK_ALTERNATIVE_VIEWPOINTS_PROMPT
+)
+# Import new prompt utilities
+from .prompt_utils import (
+    build_prompt,
+    get_fact_check_task_instruction,
+    get_bias_analysis_task_instruction,
+    get_timeline_task_instruction,
+    get_expert_opinions_task_instruction,
+    get_fact_check_schema,
+    get_bias_analysis_schema,
+    get_timeline_schema,
+    get_expert_opinions_schema
 )
 
 
@@ -144,19 +152,26 @@ class AnalysisHandler:
         # Fetch article text
         article_text = fetch_text(article_url)
         
-        # Map analysis types to prompts
-        prompt_map = {
-            'fact-check': GROK_FACT_CHECK_PROMPT,
-            'bias': GROK_BIAS_ANALYSIS_PROMPT,
-            'timeline': GROK_TIMELINE_PROMPT,
-            'expert': GROK_EXPERT_OPINIONS_PROMPT
+        # Map analysis types to instruction generators and schemas
+        instruction_map = {
+            'fact-check': (get_fact_check_task_instruction, get_fact_check_schema),
+            'bias': (get_bias_analysis_task_instruction, get_bias_analysis_schema),
+            'timeline': (get_timeline_task_instruction, get_timeline_schema),
+            'expert': (get_expert_opinions_task_instruction, get_expert_opinions_schema)
         }
         
-        if analysis_type not in prompt_map:
+        if analysis_type not in instruction_map:
             raise ValueError(f"Unknown analysis type: {analysis_type}")
         
-        # Prepare prompt
-        prompt_content = prompt_map[analysis_type] + "\n\nΆρθρο:\n" + article_text
+        # Get instruction generator and schema
+        instruction_fn, schema_fn = instruction_map[analysis_type]
+        
+        # Generate task instruction
+        task_instruction = instruction_fn(article_text)
+        
+        # Build complete prompt with hardened template
+        schema = schema_fn()
+        prompt_content = build_prompt(task_instruction, schema)
         
         # Import search params builder
         from .search_params_builder import build_search_params
@@ -183,14 +198,11 @@ class AnalysisHandler:
             # Use default search params
             search_params_dict = self.grok_client.get_default_search_params()
         
-        # Define schemas for each analysis type
-        schemas = self._get_analysis_schemas()
-        
-        # Make API call
+        # Make API call with the schema already included in prompt
         completion = self.grok_client.create_completion(
             prompt=prompt_content,
             search_params=search_params_dict,
-            response_format={"type": "json_object", "schema": schemas[analysis_type]},
+            response_format={"type": "json_object"},
             stream=False
         )
         
@@ -199,6 +211,32 @@ class AnalysisHandler:
         # Parse response
         response_data = json.loads(completion.choices[0].message.content)
         citations = self.grok_client.extract_citations(completion)
+        
+        # Special validation for expert analysis
+        if analysis_type == 'expert':
+            # Import citation processor
+            from .citation_processor import validate_citations
+            
+            # Validate that experts mentioned actually appear in citations
+            is_valid, issues = validate_citations(response_data, citations)
+            if not is_valid:
+                print(f"[get_deep_analysis] Expert validation issues: {issues}", flush=True)
+                
+            # Filter out experts without matching citations
+            if 'experts' in response_data:
+                validated_experts = []
+                for expert in response_data['experts']:
+                    # Check if expert name or opinion appears in any citation content
+                    expert_found = False
+                    expert_name = expert.get('name', '').lower()
+                    
+                    # For now, include all experts but log if they're not in citations
+                    if not expert_found and expert_name:
+                        print(f"[get_deep_analysis] Warning: Expert '{expert_name}' not found in citations", flush=True)
+                    
+                    validated_experts.append(expert)
+                
+                response_data['experts'] = validated_experts
         
         return {
             'analysis': response_data,

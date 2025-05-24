@@ -372,15 +372,31 @@ Reference article:
 
 def get_expert_opinions_task_instruction(article_text: str) -> str:
     """Generate task instruction for expert opinions collection."""
-    return f"""Collect expert opinions related to the topic of the article below.
-Search for:
-- Statements from academics, researchers, analysts
-- Opinions from government officials
-- Comments from industry experts
-- Posts on X (Twitter) from credible accounts
-For each opinion, provide the name, expert's title, the opinion, and the source URL.
-IMPORTANT: Search primarily in Greek language and Greek experts/officials.
-Remember: ALL text values in JSON must be in Greek.
+    return f"""Find REAL expert opinions about the topic of the article below.
+
+STRICT REQUIREMENTS:
+1. ONLY include experts that you actually find through Live Search
+2. DO NOT invent or imagine experts - if you can't find any, return empty array
+3. Each expert MUST have been found in your search results
+4. The opinion MUST come from actual search results, not speculation
+5. If citing X/Twitter, the handle must exist in search results
+
+Search for ACTUAL statements from:
+- Greek academics, researchers, analysts who commented on this topic
+- Government officials who made statements about this
+- Industry experts or organization representatives
+- Journalists or commentators with expertise
+
+For each expert found:
+- Name must be from search results
+- Opinion must be what they actually said (not interpretation)
+- Only include if you found them discussing THIS specific topic
+
+IMPORTANT: 
+- Search primarily in Greek language
+- If no experts found, return empty experts array
+- Better to have fewer real experts than many hallucinated ones
+- ALL text values in JSON must be in Greek
 
 Reference article:
 {article_text}"""
