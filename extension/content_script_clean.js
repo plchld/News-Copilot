@@ -165,7 +165,7 @@ function renderOverview(jargonData, viewpointsData, panel) {
     `;
     
     panel.appendChild(overview);
-
+    
     // Add progressive analysis options
     const progressiveOptions = document.createElement('div');
     progressiveOptions.style.cssText = `

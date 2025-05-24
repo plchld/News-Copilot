@@ -175,7 +175,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }).catch(() => {}); // Ignore if tab is closed
               } else if (eventType === 'final_result') {
                 console.log("Background: Received final result:", eventData);
-                sendResponse({ success: true, data: eventData });
+                // Spread eventData properties directly into response for backward compatibility
+                sendResponse({ success: true, ...eventData });
                 reader.cancel(); // Stop reading after final result
                 return;
               } else if (eventType === 'error') {

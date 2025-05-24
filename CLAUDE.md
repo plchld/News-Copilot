@@ -13,6 +13,18 @@ News Copilot is a Greek news intelligence platform with AI-powered contextual an
 
 The architecture uses Server-Sent Events (SSE) for real-time progress updates and structured JSON schemas for AI responses.
 
+### Backend API Structure
+The API is modularly organized in the `api/` directory:
+- **index.py**: Vercel entry point that imports the Flask app
+- **app.py**: Flask application factory with route registration
+- **routes.py**: Main API routes for analysis endpoints
+- **analysis_handlers.py**: Core analysis processing logic
+- **article_extractor.py**: Content extraction with Trafilatura
+- **grok_client.py**: Grok API client wrapper with error handling
+- **config.py**: Configuration management for all services
+- **models.py**: Pydantic models for request/response validation
+- **auth modules**: Multiple auth implementations (supabase_auth.py, http_supabase.py, simple_auth.py)
+
 ## Development Commands
 
 ### Backend Development
@@ -47,7 +59,7 @@ python test_http_supabase.py
 
 # Test on Greek news sites
 # Visit any supported site from manifest.json matches[]
-# Extension uses popup-supabase.html for auth
+# Extension uses popup-auth.html for auth
 ```
 
 ### Testing
@@ -79,6 +91,13 @@ python test_auth_system.py
 # Setup test environment
 python setup_test_env.py
 ```
+
+### Test Infrastructure
+The project uses pytest with the following structure:
+- **tests/**: Main test directory with organized test modules
+- **conftest.py**: Pytest configuration and shared fixtures
+- **pytest.ini**: Test runner configuration
+- **run_tests.py**: Main test runner with coverage reporting
 
 ## Key Technical Details
 
@@ -116,10 +135,12 @@ All AI prompts are centralized in `prompts.py`:
 
 ### Chrome Extension Structure
 - **manifest.json**: Configured for 50+ Greek news sites with Supabase permissions
-- **content_script.js**: Complete UI implementation with sidebar and reader mode
+- **content_script_clean.js**: Complete UI implementation with sidebar and reader mode
 - **background.js**: Service worker for API communication and message handling
-- **popup-supabase.html/js**: Authentication UI with magic link support
+- **popup-auth.html/js**: Main authentication UI with magic link support
+- **popup-supabase.html/js**: Alternative Supabase authentication UI
 - **js/supabase-auth.js**: Supabase client configuration
+- **css/content_styles.css**: Extension styling for sidebar and reader mode
 
 ## Supported Sites
 
@@ -142,6 +163,7 @@ Site configuration is automatically tested with `test_sites.py` for accessibilit
 - `BASE_URL`: API base URL (https://news-copilot.vercel.app for production)
 - `FLASK_PORT`: Optional, defaults to 8080 for local dev
 - `DEBUG_MODE`: Optional development flag
+- `AUTH_ENABLED`: Optional flag to enable/disable authentication (defaults to true)
 
 ### Extension Permissions
 - `activeTab`: Access to current tab content
@@ -184,9 +206,11 @@ When deploying to production:
 - **Build Config**: See `vercel.json` for Lambda configuration
 - **Environment**: Set all required env vars in Vercel dashboard
 - **Domain**: Configure custom domain or use default .vercel.app
+- **Static Files**: Verification pages served from `static/` directory
 
 ### Supabase Setup
 - **Documentation**: Complete setup guide in `SUPABASE_SETUP.md`
 - **Schema**: Run `supabase_schema.sql` to create tables and RLS policies
 - **Email Templates**: Configure in Supabase dashboard for magic links
 - **Admin Setup**: Use `setup_admin.py` to create initial admin user
+- **Verification Pages**: `static/verification-success.html` and `static/verification-failed.html`
