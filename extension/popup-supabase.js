@@ -55,13 +55,21 @@ class SimpleSupabaseClient {
         return { data: { subscription: null } };
     }
 
+    async setSession(session) {
+        // Store the session
+        this.currentSession = session;
+        localStorage.setItem('supabase_session', JSON.stringify(session));
+        return { data: { session }, error: null };
+    }
+
     get auth() {
         return {
             signInWithOtp: this.signInWithOtp.bind(this),
             getSession: this.getSession.bind(this),
             onAuthStateChange: this.onAuthStateChange.bind(this),
             signOut: async () => ({ error: null }),
-            signInWithOAuth: this.signInWithOAuth.bind(this)
+            signInWithOAuth: this.signInWithOAuth.bind(this),
+            setSession: this.setSession.bind(this)
         };
     }
 
@@ -183,6 +191,26 @@ class NewscopilotAuth {
     
     async checkAuthState() {
         try {
+            // First check localStorage for auth data (set by the callback page)
+            const storedAuth = localStorage.getItem('news_copilot_auth');
+            if (storedAuth) {
+                try {
+                    const authData = JSON.parse(storedAuth);
+                    // Check if token is not expired
+                    if (authData.expires_at > Date.now()) {
+                        // Update Supabase client with the stored token
+                        supabase.auth.setSession({
+                            access_token: authData.access_token,
+                            refresh_token: authData.refresh_token
+                        });
+                        // Clear the stored auth to prevent reuse
+                        localStorage.removeItem('news_copilot_auth');
+                    }
+                } catch (e) {
+                    console.error('Error parsing stored auth:', e);
+                }
+            }
+            
             const { data: { session }, error } = await supabase.auth.getSession();
             
             if (error) {
@@ -447,5 +475,17 @@ class NewscopilotAuth {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
-    new NewscopilotAuth();
+    const auth = new NewscopilotAuth();
+    
+    // Check auth state when popup window gains focus (e.g., after returning from magic link)
+    window.addEventListener('focus', () => {
+        auth.checkAuthState();
+    });
+    
+    // Also listen for storage events (though they don't fire in the same window)
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'news_copilot_auth') {
+            auth.checkAuthState();
+        }
+    });
 });

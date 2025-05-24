@@ -304,19 +304,8 @@ def send_magic_link():
 @supabase_auth_bp.route('/auth/callback', methods=['GET'])
 def auth_callback():
     """Handle Supabase auth callback"""
-    # This will be handled by the frontend (Chrome extension)
-    return '''
-    <html>
-    <body>
-        <h1>Authentication Successful!</h1>
-        <p>You can now close this tab and return to the extension.</p>
-        <script>
-            // Notify parent window if opened from extension
-            if (window.opener) {
-                window.opener.postMessage({type: 'AUTH_SUCCESS'}, '*');
-                window.close();
-            }
-        </script>
-    </body>
-    </html>
-    '''
+    # Serve the static auth callback page
+    from flask import send_from_directory
+    import os
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
+    return send_from_directory(static_dir, 'auth-callback.html')

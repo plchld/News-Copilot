@@ -178,7 +178,7 @@ def get_augmentations_stream(article_url: str) -> Generator[str, None, None]:
     yield stream_event("final_result", final_results)
     yield stream_event("progress", {"status": "Done!"}) # Final status update
 
-app = Flask(__name__) # Ensure Flask app is initialized
+app = Flask(__name__, static_folder='static') # Ensure Flask app is initialized with static folder
 CORS(app)             # Enable CORS
 
 # Import and register auth blueprints
@@ -199,7 +199,16 @@ except ImportError as e:
 
 @app.route('/', methods=['GET'])
 def home():
-    """Health check and API info endpoint"""
+    """Health check and API info endpoint, or serve auth callback page"""
+    # Check if this is an API request or browser request
+    accept_header = request.headers.get('Accept', '')
+    
+    # If it's a browser request (accepts HTML) and has auth tokens in hash, serve the static page
+    if 'text/html' in accept_header:
+        # Serve the static index.html for browser requests
+        return app.send_static_file('index.html')
+    
+    # Otherwise, return API info
     return jsonify({
         "service": "News Copilot API",
         "status": "running",
