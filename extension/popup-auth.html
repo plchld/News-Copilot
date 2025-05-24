@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Copilot</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            width: 350px;
+            padding: 0;
+            margin: 0;
+            background: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 20px;
+            margin: 0 0 5px 0;
+            color: #333;
+        }
+        
+        .header p {
+            font-size: 12px;
+            color: #666;
+            margin: 0;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+        
+        /* Loading View */
+        .loading-view {
+            text-align: center;
+            padding: 40px 0;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1c7ed6;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Login View */
+        .login-form {
+            margin-top: 20px;
+        }
+        
+        .email-input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        
+        .auth-button {
+            width: 100%;
+            padding: 10px;
+            background-color: #1c7ed6;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .auth-button:hover:not(:disabled) {
+            background-color: #1864ab;
+        }
+        
+        .auth-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .auth-message {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            text-align: center;
+        }
+        
+        .auth-message.info {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+        
+        .auth-message.success {
+            background-color: #e8f5e9;
+            color: #388e3c;
+        }
+        
+        .auth-message.error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        
+        /* Authenticated View */
+        .user-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .user-email {
+            font-size: 14px;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        
+        .tier-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #1c7ed6;
+            color: white;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .usage-section {
+            margin-bottom: 20px;
+        }
+        
+        .usage-title {
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .usage-item {
+            margin-bottom: 10px;
+        }
+        
+        .usage-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 3px;
+        }
+        
+        .usage-bar {
+            width: 100%;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .usage-bar-fill {
+            height: 100%;
+            background: #1c7ed6;
+            transition: width 0.3s ease;
+        }
+        
+        .usage-text {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+            text-align: right;
+        }
+        
+        .logout-button {
+            width: 100%;
+            padding: 8px;
+            background-color: #f5f5f5;
+            color: #666;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .logout-button:hover {
+            background-color: #e0e0e0;
+        }
+        
+        .info-text {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📰 News Copilot</h1>
+            <p>Έξυπνη ανάλυση ελληνικών ειδήσεων</p>
+        </div>
+        
+        <!-- Loading View -->
+        <div id="loadingView" class="loading-view">
+            <div class="spinner"></div>
+            <p>Έλεγχος σύνδεσης...</p>
+        </div>
+        
+        <!-- Login View -->
+        <div id="loginView" class="hidden">
+            <div class="login-form">
+                <input 
+                    type="email" 
+                    id="emailInput" 
+                    class="email-input" 
+                    placeholder="your@email.com"
+                    autocomplete="email"
+                >
+                <button id="magicLinkButton" class="auth-button">
+                    Αποστολή Magic Link
+                </button>
+                <div id="authMessage" class="auth-message hidden"></div>
+            </div>
+            <div class="info-text">
+                Εισάγετε το email σας για να λάβετε σύνδεσμο σύνδεσης
+            </div>
+        </div>
+        
+        <!-- Authenticated View -->
+        <div id="authenticatedView" class="hidden">
+            <div class="user-info">
+                <div class="user-email" id="userEmail">user@example.com</div>
+                <span class="tier-badge" id="tierName">Free</span>
+            </div>
+            
+            <div class="usage-section">
+                <h3 class="usage-title">Μηνιαία Χρήση</h3>
+                
+                <div class="usage-item">
+                    <div class="usage-label">Βασικές Αναλύσεις</div>
+                    <div class="usage-bar">
+                        <div class="usage-bar-fill" id="basicUsageBar" style="width: 0%"></div>
+                    </div>
+                    <div class="usage-text" id="basicUsage">0 / 10</div>
+                </div>
+                
+                <div class="usage-item">
+                    <div class="usage-label">Εξειδικευμένες Αναλύσεις</div>
+                    <div class="usage-bar">
+                        <div class="usage-bar-fill" id="deepUsageBar" style="width: 0%"></div>
+                    </div>
+                    <div class="usage-text" id="deepUsage">0 / 5</div>
+                </div>
+            </div>
+            
+            <button id="logoutButton" class="logout-button">
+                Αποσύνδεση
+            </button>
+            
+            <div class="info-text">
+                Επισκεφθείτε μια ελληνική ειδησεογραφική σελίδα για να ξεκινήσετε
+            </div>
+        </div>
+    </div>
+    
+    <script src="popup-auth.js"></script>
+</body>
+</html>

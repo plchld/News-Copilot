@@ -74,6 +74,6 @@
   ],
   "action": {
     "default_title": "News Copilot",
-    "default_popup": "popup-supabase.html"
+    "default_popup": "popup-auth.html"
   }
 } 

@@ -1,32 +1,104 @@
-console.log("Article Augmentor background script loaded.");
+console.log("News Copilot background script loaded.");
 
-// Store auth token
-let authToken = null;
+// Auth state management
+let authState = {
+  token: null,
+  user: null,
+  expiresAt: null
+};
 
-// Listen for auth updates from popup
+// Initialize auth state from storage
+chrome.storage.local.get(['auth_token', 'auth_user', 'auth_expires_at'], (result) => {
+  if (result.auth_token && result.auth_expires_at > Date.now()) {
+    authState = {
+      token: result.auth_token,
+      user: result.auth_user,
+      expiresAt: result.auth_expires_at
+    };
+    console.log("Auth state loaded from storage");
+  }
+});
+
+// Handle auth state updates
+async function updateAuthState(token, user, expiresAt) {
+  authState = { token, user, expiresAt };
+  
+  // Store in chrome.storage
+  await chrome.storage.local.set({
+    auth_token: token,
+    auth_user: user,
+    auth_expires_at: expiresAt
+  });
+  
+  // Notify all tabs and popup
+  chrome.runtime.sendMessage({ type: 'AUTH_STATE_CHANGED', authState });
+  
+  // Notify all content scripts
+  const tabs = await chrome.tabs.query({});
+  tabs.forEach(tab => {
+    chrome.tabs.sendMessage(tab.id, { type: 'AUTH_STATE_CHANGED', authState }).catch(() => {});
+  });
+}
+
+// Clear auth state
+async function clearAuthState() {
+  authState = { token: null, user: null, expiresAt: null };
+  await chrome.storage.local.remove(['auth_token', 'auth_user', 'auth_expires_at']);
+  
+  // Notify all
+  chrome.runtime.sendMessage({ type: 'AUTH_STATE_CHANGED', authState });
+  const tabs = await chrome.tabs.query({});
+  tabs.forEach(tab => {
+    chrome.tabs.sendMessage(tab.id, { type: 'AUTH_STATE_CHANGED', authState }).catch(() => {});
+  });
+}
+
+// Listen for messages
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "AUTH_UPDATE") {
-    authToken = message.token;
-    console.log("Auth token updated:", authToken ? "Present" : "Cleared");
+  // Auth state queries
+  if (message.type === "GET_AUTH_STATE") {
+    sendResponse({ authState });
+    return false;
+  }
+  
+  // Auth state updates
+  if (message.type === "SET_AUTH_STATE") {
+    updateAuthState(message.token, message.user, message.expiresAt);
     sendResponse({ success: true });
     return false;
   }
-});
-
-// Load auth token on startup
-chrome.storage.local.get(['authToken'], (result) => {
-  if (result.authToken) {
-    authToken = result.authToken;
-    console.log("Auth token loaded from storage");
+  
+  // Clear auth
+  if (message.type === "CLEAR_AUTH") {
+    clearAuthState();
+    sendResponse({ success: true });
+    return false;
   }
-});
+  
+  // Handle auth callback from web page
+  if (message.type === "AUTH_CALLBACK") {
+    const { access_token, refresh_token, expires_in, user_email } = message.data;
+    const expiresAt = Date.now() + (expires_in * 1000);
+    
+    updateAuthState(access_token, { email: user_email, refresh_token }, expiresAt);
+    sendResponse({ success: true });
+    return false;
+  }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Legacy auth update support
+  if (message.type === "AUTH_UPDATE") {
+    const expiresAt = Date.now() + (3600 * 1000); // Default 1 hour
+    updateAuthState(message.token, null, expiresAt);
+    sendResponse({ success: true });
+    return false;
+  }
+
+  // Article augmentation
   if (message.type === "AUGMENT_ARTICLE") {
     console.log("Background: Received AUGMENT_ARTICLE message with URL:", message.url);
     
     // Check if user is authenticated
-    if (!authToken) {
+    if (!authState.token || authState.expiresAt < Date.now()) {
       sendResponse({
         success: false,
         error: "Παρακαλώ συνδεθείτε πρώτα από το εικονίδιο της επέκτασης",
@@ -40,7 +112,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     fetch(flaskServerUrl, {
       headers: {
-        'Authorization': `Bearer ${authToken}`
+        'Authorization': `Bearer ${authState.token}`
       }
     })
     .then(response => {
@@ -103,6 +175,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     .catch(error => {
       console.error("Fetch error:", error);
       if (error.message === 'AUTH_REQUIRED') {
+        clearAuthState(); // Clear invalid auth
         sendResponse({
           success: false,
           error: "Παρακαλώ συνδεθείτε ξανά",
@@ -120,10 +193,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
 
     return true; // Will respond asynchronously
-  } else if (message.type === "DEEP_ANALYSIS") {
+  }
+  
+  // Deep analysis
+  if (message.type === "DEEP_ANALYSIS") {
     console.log("Background: Received DEEP_ANALYSIS message:", message);
     
-    if (!authToken) {
+    if (!authState.token || authState.expiresAt < Date.now()) {
       sendResponse({
         success: false,
         error: "Παρακαλώ συνδεθείτε πρώτα",
@@ -145,7 +221,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`
+        'Authorization': `Bearer ${authState.token}`
       },
       body: JSON.stringify(requestData)
     })
@@ -167,6 +243,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     .catch(error => {
       console.error("Background: Deep analysis error:", error);
       if (error.message === 'AUTH_REQUIRED') {
+        clearAuthState(); // Clear invalid auth
         sendResponse({
           success: false,
           error: "Παρακαλώ συνδεθείτε ξανά",
@@ -184,5 +261,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     
     return true; // Will respond asynchronously
+  }
+});
+
+// Listen for auth callback URLs
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.url && changeInfo.url.includes('news-copilot.vercel.app/#access_token=')) {
+    // Parse the auth tokens from the URL
+    const url = new URL(changeInfo.url);
+    const hash = url.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    
+    const access_token = params.get('access_token');
+    const refresh_token = params.get('refresh_token');
+    const expires_in = parseInt(params.get('expires_in') || '3600');
+    
+    if (access_token) {
+      // Update auth state
+      const expiresAt = Date.now() + (expires_in * 1000);
+      updateAuthState(access_token, { refresh_token }, expiresAt);
+      
+      // Show success message
+      chrome.tabs.sendMessage(tabId, {
+        type: 'SHOW_AUTH_SUCCESS',
+        message: 'Επιτυχής σύνδεση! Μπορείτε τώρα να κλείσετε αυτήν την καρτέλα.'
+      });
+      
+      // Close the tab after a delay
+      setTimeout(() => {
+        chrome.tabs.remove(tabId);
+      }, 3000);
+    }
   }
 });

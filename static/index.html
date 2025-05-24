@@ -161,20 +161,20 @@
             }
 
             if (params.access_token) {
-                // Store tokens
-                await storeTokensInExtension(params);
-
-                // Show success message
+                // Show success message immediately
                 document.getElementById('loadingView').style.display = 'none';
                 document.getElementById('successView').style.display = 'block';
 
+                // The background script will detect this URL and handle the auth
+                // No need to manually store tokens - background.js is listening for this URL pattern
+                
                 // Clear the hash from URL for security
                 history.replaceState(null, null, ' ');
 
-                // Auto-close after 5 seconds
+                // Auto-close after 3 seconds
                 setTimeout(() => {
                     window.close();
-                }, 5000);
+                }, 3000);
             }
         }
 
