@@ -48,6 +48,7 @@ SOURCE_TO_DOMAINS = {
     "newsit": ["newsit.gr"],
     "enikos": ["enikos.gr"],
     "ενικός": ["enikos.gr"],
+    "pronews": ["pronews.gr"],
     
     # Alternative/Political news
     "efsyn": ["efsyn.gr"],

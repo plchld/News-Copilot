@@ -872,6 +872,8 @@ function calculateExpertReliability(expert) {
 // Helper functions for formatting different analysis types
 function formatFactCheckResults(data) {
     try {
+        console.log('formatFactCheckResults received data:', data);
+        
         if (!data) {
             return '<div style="padding: 20px; text-align: center; color: #6b7280;">Δεν υπάρχουν δεδομένα για εμφάνιση</div>';
         }
@@ -893,10 +895,10 @@ function formatFactCheckResults(data) {
             
             ${data.claims && Array.isArray(data.claims) && data.claims.length > 0 ? data.claims.map(claim => `
                 <div style="padding: 12px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px;">
-                    <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">"${claim.statement}"</div>
-                                            <div style="font-size: 13px; color: ${claim.verified ? '#16a34a' : '#dc2626'}; margin-bottom: 8px;">
-                            ${claim.verified ? '✓ Επαληθευμένο' : '✗ Αμφισβητήσιμο'}: ${claim.explanation || 'Δεν υπάρχει εξήγηση'}
-                        </div>
+                    <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">"${claim.statement || 'Δεν υπάρχει δήλωση'}"</div>
+                    <div style="font-size: 13px; color: ${claim.verified ? '#16a34a' : '#dc2626'}; margin-bottom: 8px;">
+                        ${claim.verified ? '✓ Επαληθευμένο' : '✗ Αμφισβητήσιμο'}: ${claim.explanation || 'Δεν υπάρχει εξήγηση'}
+                    </div>
                     ${claim.sources && claim.sources.length > 0 ? `
                         <div style="font-size: 11px; color: #6b7280;">
                             <strong>Πηγές:</strong> ${claim.sources.slice(0, 2).join(', ')}${claim.sources.length > 2 ? ` (+${claim.sources.length - 2} ακόμη)` : ''}
