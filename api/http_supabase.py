@@ -180,7 +180,21 @@ def require_http_supabase_auth(analysis_type: str = 'basic_analysis'):
             
             token = auth_header.split(' ')[1]
             
-            # Verify token
+            # Check if it's an API key (starts with 'xai-')
+            if token.startswith('xai-'):
+                # API key authentication - no rate limits
+                request.user_data = {
+                    'user_id': 'api-key-user',
+                    'email': 'api-key-user@example.com',
+                    'is_api_key': True
+                }
+                request.user_profile = {
+                    'tier': UserTier.BYOK,
+                    'api_key': token
+                }
+                return f(*args, **kwargs)
+            
+            # Regular JWT token verification
             user_data = verify_supabase_jwt(token)
             if not user_data:
                 return jsonify({'error': 'Invalid token'}), 401
@@ -232,6 +246,22 @@ def get_profile():
         return jsonify({'error': 'Missing authentication token'}), 401
     
     token = auth_header.split(' ')[1]
+    
+    # Check if it's an API key
+    if token.startswith('xai-'):
+        return jsonify({
+            'user_id': 'api-key-user',
+            'email': 'api-key-user@example.com',
+            'tier': UserTier.BYOK,
+            'email_verified': True,
+            'is_api_key': True,
+            'basic_analysis_limit': float('inf'),
+            'deep_analysis_limit': float('inf'),
+            'basic_analysis_count': 0,
+            'deep_analysis_count': 0
+        })
+    
+    # Regular JWT token
     user_data = verify_supabase_jwt(token)
     
     if not user_data:
@@ -298,6 +328,37 @@ def update_api_key():
     except Exception as e:
         print(f"Error updating API key: {e}")
         return jsonify({'error': 'Failed to update API key'}), 500
+
+@http_supabase_bp.route('/api/auth/validate-api-key', methods=['POST'])
+def validate_api_key():
+    """Validate API key and return user info"""
+    auth_header = request.headers.get('Authorization')
+    
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({'error': 'No API key provided'}), 401
+    
+    api_key = auth_header.replace('Bearer ', '')
+    
+    # For now, we'll accept any API key that starts with 'xai-'
+    # In production, you'd validate against actual API keys
+    if api_key.startswith('xai-'):
+        return jsonify({
+            'valid': True,
+            'user': {
+                'email': 'api-key-user@example.com',
+                'tier': UserTier.BYOK,
+                'is_api_key': True
+            },
+            'profile': {
+                'tier': UserTier.BYOK,
+                'basic_analysis_limit': float('inf'),
+                'deep_analysis_limit': float('inf'),
+                'basic_analysis_count': 0,
+                'deep_analysis_count': 0
+            }
+        })
+    else:
+        return jsonify({'error': 'Invalid API key'}), 401
 
 @http_supabase_bp.route('/api/auth/magic-link', methods=['POST'])
 def send_magic_link():

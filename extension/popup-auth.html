@@ -91,6 +91,14 @@
             background-color: #1864ab;
         }
         
+        .api-key-button {
+            background-color: #6c757d;
+        }
+        
+        .api-key-button:hover:not(:disabled) {
+            background-color: #5a6268;
+        }
+        
         .auth-button:disabled {
             opacity: 0.6;
             cursor: not-allowed;
@@ -237,10 +245,28 @@
                 <button id="magicLinkButton" class="auth-button">
                     Αποστολή Magic Link
                 </button>
+                
+                <div style="text-align: center; margin: 15px 0;">
+                    <span style="color: #999; font-size: 12px;">— ή —</span>
+                </div>
+                
+                <div style="margin-bottom: 10px;">
+                    <input 
+                        type="password" 
+                        id="apiKeyInput" 
+                        class="email-input" 
+                        placeholder="Εισάγετε το API Key σας"
+                        autocomplete="off"
+                    >
+                    <button id="apiKeyButton" class="auth-button api-key-button">
+                        Σύνδεση με API Key
+                    </button>
+                </div>
+                
                 <div id="authMessage" class="auth-message hidden"></div>
             </div>
             <div class="info-text">
-                Εισάγετε το email σας για να λάβετε σύνδεσμο σύνδεσης
+                Εισάγετε το email σας για Magic Link ή χρησιμοποιήστε το API Key σας
             </div>
         </div>
         

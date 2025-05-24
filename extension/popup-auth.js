@@ -23,6 +23,8 @@ class AuthManager {
         // Login elements
         this.emailInput = document.getElementById('emailInput');
         this.magicLinkButton = document.getElementById('magicLinkButton');
+        this.apiKeyInput = document.getElementById('apiKeyInput');
+        this.apiKeyButton = document.getElementById('apiKeyButton');
         this.authMessage = document.getElementById('authMessage');
         
         // Authenticated view elements
@@ -39,11 +41,18 @@ class AuthManager {
 
     setupEventListeners() {
         this.magicLinkButton.addEventListener('click', () => this.sendMagicLink());
+        this.apiKeyButton.addEventListener('click', () => this.authenticateWithApiKey());
         this.logoutButton.addEventListener('click', () => this.logout());
         
         this.emailInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 this.sendMagicLink();
+            }
+        });
+        
+        this.apiKeyInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.authenticateWithApiKey();
             }
         });
 
@@ -137,6 +146,61 @@ class AuthManager {
         }
     }
 
+    async authenticateWithApiKey() {
+        const apiKey = this.apiKeyInput.value.trim();
+        
+        if (!apiKey) {
+            this.showMessage('Παρακαλώ εισάγετε το API Key σας', 'error');
+            return;
+        }
+        
+        this.setLoading(this.apiKeyButton, true);
+        
+        try {
+            // Validate API key with backend
+            const response = await fetch(`${BACKEND_URL}/api/auth/validate-api-key`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({ api_key: apiKey })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Invalid API key');
+            }
+
+            const data = await response.json();
+            
+            // Store auth state in background script
+            const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+            await chrome.runtime.sendMessage({
+                type: 'SET_AUTH_STATE',
+                token: apiKey,
+                user: { email: 'API Key User', is_api_key: true },
+                expiresAt: expiresAt
+            });
+            
+            this.showMessage('Επιτυχής σύνδεση με API Key!', 'success');
+            
+            // Clear the input
+            this.apiKeyInput.value = '';
+            
+            // Load profile and show authenticated view
+            this.currentUser = { email: 'API Key User', is_api_key: true };
+            await this.loadUserProfile(apiKey);
+            this.showAuthenticatedView();
+            
+        } catch (error) {
+            console.error('Error authenticating with API key:', error);
+            this.showMessage(`Σφάλμα: ${error.message}`, 'error');
+        } finally {
+            this.setLoading(this.apiKeyButton, false);
+        }
+    }
+
     async loadUserProfile(token) {
         try {
             const response = await fetch(`${BACKEND_URL}/api/auth/profile`, {
@@ -180,21 +244,38 @@ class AuthManager {
         
         // Update UI with user info
         if (this.currentUser) {
-            this.userEmail.textContent = this.currentUser.email || 'User';
-        }
-        
-        if (this.currentProfile) {
-            this.tierName.textContent = this.getTierDisplayName(this.currentProfile.tier);
-            
-            // Update usage
-            const basicPercent = (this.currentProfile.basic_analysis_count / this.currentProfile.basic_analysis_limit) * 100;
-            const deepPercent = (this.currentProfile.deep_analysis_count / this.currentProfile.deep_analysis_limit) * 100;
-            
-            this.basicUsage.textContent = `${this.currentProfile.basic_analysis_count} / ${this.currentProfile.basic_analysis_limit}`;
-            this.deepUsage.textContent = `${this.currentProfile.deep_analysis_count} / ${this.currentProfile.deep_analysis_limit}`;
-            
-            this.basicUsageBar.style.width = `${Math.min(basicPercent, 100)}%`;
-            this.deepUsageBar.style.width = `${Math.min(deepPercent, 100)}%`;
+            if (this.currentUser.is_api_key) {
+                this.userEmail.textContent = 'API Key Authentication';
+                this.tierName.textContent = 'API Key';
+                
+                // Hide usage stats for API key users
+                const usageSection = document.querySelector('.usage-section');
+                if (usageSection) {
+                    usageSection.style.display = 'none';
+                }
+            } else {
+                this.userEmail.textContent = this.currentUser.email || 'User';
+                
+                // Show usage stats for regular users
+                const usageSection = document.querySelector('.usage-section');
+                if (usageSection) {
+                    usageSection.style.display = 'block';
+                }
+                
+                if (this.currentProfile) {
+                    this.tierName.textContent = this.getTierDisplayName(this.currentProfile.tier);
+                    
+                    // Update usage
+                    const basicPercent = (this.currentProfile.basic_analysis_count / this.currentProfile.basic_analysis_limit) * 100;
+                    const deepPercent = (this.currentProfile.deep_analysis_count / this.currentProfile.deep_analysis_limit) * 100;
+                    
+                    this.basicUsage.textContent = `${this.currentProfile.basic_analysis_count} / ${this.currentProfile.basic_analysis_limit}`;
+                    this.deepUsage.textContent = `${this.currentProfile.deep_analysis_count} / ${this.currentProfile.deep_analysis_limit}`;
+                    
+                    this.basicUsageBar.style.width = `${Math.min(basicPercent, 100)}%`;
+                    this.deepUsageBar.style.width = `${Math.min(deepPercent, 100)}%`;
+                }
+            }
         }
     }
 
