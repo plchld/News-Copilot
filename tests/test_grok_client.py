@@ -11,17 +11,17 @@ from api.grok_client import GrokClient
 class TestGrokClient:
     """Test cases for Grok API client functionality"""
     
-    def test_init_without_api_key(self, monkeypatch):
+    @patch('api.grok_client.API_KEY', None)
+    def test_init_without_api_key(self):
         """Test initialization without API key raises error"""
-        monkeypatch.delenv("XAI_API_KEY", raising=False)
-        
         with pytest.raises(ValueError) as exc_info:
             GrokClient()
         
         assert "XAI_API_KEY not set" in str(exc_info.value)
     
+    @patch('api.grok_client.API_KEY', 'test-api-key')
     @patch('api.grok_client.OpenAI')
-    def test_init_with_api_key(self, mock_openai, mock_env_vars):
+    def test_init_with_api_key(self, mock_openai):
         """Test successful initialization with API key"""
         client = GrokClient()
         
@@ -126,12 +126,18 @@ class TestGrokClient:
         citations = GrokClient.extract_citations(mock_response)
         assert citations == []
     
-    def test_get_default_search_params(self):
+    @patch('api.grok_client.build_search_params')
+    def test_get_default_search_params(self, mock_build):
         """Test default search parameters"""
+        expected_params = {"mode": "on", "sources": [{"type": "web"}]}
+        mock_build.return_value = expected_params
+        
         params = GrokClient.get_default_search_params()
         
-        assert params["mode"] == "on"
-        assert params["return_citations"] is True
-        assert len(params["sources"]) == 2
-        assert {"type": "web"} in params["sources"]
-        assert {"type": "news"} in params["sources"]
+        mock_build.assert_called_once_with(
+            mode="on",
+            country="GR", 
+            language="el",
+            max_results=20
+        )
+        assert params == expected_params

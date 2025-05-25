@@ -57,8 +57,11 @@ def mock_trafilatura_response():
 
 
 @pytest.fixture
-def app(mock_env_vars):
+def app(mock_env_vars, monkeypatch):
     """Create Flask app for testing"""
+    # Disable authentication for tests
+    monkeypatch.setenv("AUTH_ENABLED", "false")
+    
     from api.app import create_app
     app = create_app()
     app.config['TESTING'] = True
