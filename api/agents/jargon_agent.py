@@ -23,7 +23,7 @@ class JargonAgent(AnalysisAgent):
         return cls(
             config=config,
             grok_client=grok_client,
-            prompt_builder=lambda ctx: GROK_CONTEXT_JARGON_PROMPT_SCHEMA,
+            prompt_builder=cls._build_jargon_prompt,
             schema_builder=lambda: {
                 "type": "object",
                 "properties": {
@@ -45,32 +45,26 @@ class JargonAgent(AnalysisAgent):
     
     def _build_search_params(self, context: Dict[str, Any]) -> Optional[Dict]:
         """Build search parameters for jargon lookup"""
-        # Build search params for jargon
-        return {
-            "mode": "auto",
-            "sources": [
-                {"type": "web"},
-                {"type": "news"}
-            ],
-            "return_citations": True,
-            "max_search_results": 10
-        }
+        from ..search_params_builder import get_search_params_for_jargon
+        from urllib.parse import urlparse
+        
+        # Extract domain from article URL to exclude it
+        article_url = context.get('article_url', '')
+        parsed_url = urlparse(article_url)
+        article_domain = parsed_url.netloc.replace('www.', '') if parsed_url.netloc else None
+        
+        return get_search_params_for_jargon(mode="auto", article_domain=article_domain)
+    
+    @staticmethod
+    def _build_jargon_prompt(context: Dict[str, Any]) -> str:
+        """Build optimized prompt for jargon extraction"""
+        # For grok-3-mini, use a concise prompt without redundant instructions
+        # The full article text is passed via the user message in base_agent
+        return """Identify technical terms, organizations, and historical references that need explanation.
+Provide brief explanations (1-2 sentences) in GREEK for each term."""
     
     async def _call_grok(self, prompt: str, schema: Dict, model: ModelType,
                         search_params: Optional[Dict], context: Dict) -> Dict:
         """Call Grok API for jargon analysis"""
         # Let the base class handle the API call
         return await super()._call_grok(prompt, schema, model, search_params, context)
-
-
-# Import the prompt from prompts.py
-GROK_CONTEXT_JARGON_PROMPT_SCHEMA = """Read the news article below.
-Identify ONLY the NON-obvious technical terms, organizations, or historical references that an average reader might not be familiar with.
-For each term, provide an explanation of 1-2 sentences IN GREEK.
-
-Return the results as a JSON object containing a "terms" array with objects that have:
-- "term": the term as it appears in the article
-- "explanation": the explanation in Greek
-
-IMPORTANT: Use Live Search with GREEK search terms when possible. ALL explanations must be written in GREEK. Only use English search terms when the specific term requires it (e.g., English technical terms, international organizations).
-"""

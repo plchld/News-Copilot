@@ -22,44 +22,34 @@ class BiasAnalysisAgent(AnalysisAgent):
         return cls(
             config=config,
             grok_client=grok_client,
-            prompt_builder=lambda ctx: GROK_BIAS_ANALYSIS_PROMPT,
+            prompt_builder=cls._build_bias_prompt,
             schema_builder=lambda: BIAS_ANALYSIS_SCHEMA
         )
     
+    @staticmethod
+    def _build_bias_prompt(context: Dict[str, Any]) -> str:
+        """Build optimized prompt for bias analysis"""
+        # The full article text is passed via the user message in base_agent
+        return """Analyze political bias, emotional tone, and presentation in the article.
+Compare with other sources on the same topic.
+
+Place on Greek political spectrum:
+Economic: Αριστερά/Κεντροαριστερά/Κέντρο/Κεντροδεξιά/Δεξιά
+Social: Προοδευτική/Φιλελεύθερη/Μετριοπαθής/Συντηρητική
+
+ALL analysis and justifications must be in GREEK."""
+    
     def _build_search_params(self, context: Dict[str, Any]) -> Optional[Dict]:
         """Build search parameters for bias analysis"""
-        # Build search params for bias analysis
-        return {
-            "mode": "on",
-            "sources": [
-                {"type": "news"},
-                {"type": "web"},
-                {"type": "x"}
-            ],
-            "return_citations": True,
-            "max_search_results": 20
-        }
-
-
-GROK_BIAS_ANALYSIS_PROMPT = """Analyze the news article below for political bias, emotional tone, and presentation.
-
-Using Live Search, compare the presentation with other sources covering the same topic.
-
-Greek Political Spectrum Analysis:
-Analyze the article based on the following two-dimensional Greek political spectrum:
-1.  Economic Axis:
-    *   Αριστερά (Κρατικός παρεμβατισμός, κοινωνικοποίηση μέσων παραγωγής, αναδιανομή πλούτου)
-    *   Κεντροαριστερά (Μικτή οικονομία με ισχυρό κοινωνικό κράτος, ρύθμιση αγορών)
-    *   Κέντρο (Ισορροπία μεταξύ ελεύθερης αγοράς και κοινωνικής προστασίας, δημοσιονομική υπευθυνότητα)
-    *   Κεντροδεξιά (Ελεύθερη αγορά με στοχευμένες παρεμβάσεις, μείωση φορολογίας, προσέλκυση επενδύσεων)
-    *   Δεξιά (Ελαχιστοποίηση κρατικής παρέμβασης, ιδιωτικοποιήσεις, πλήρης απελευθέρωση αγορών)
-2.  Social Axis:
-    *   Προοδευτική (Δικαιώματα ΛΟΑΤΚΙ+, διαχωρισμός κράτους-εκκλησίας, πολυπολιτισμικότητα, ατομικές ελευθερίες)
-    *   Φιλελεύθερη (Έμφαση στα ατομικά δικαιώματα, ανεκτικότητα, μεταρρυθμίσεις)
-    *   Συντηρητική (Έμφαση στην παράδοση, εθνική ταυτότητα, οικογενειακές αξίες, επιφυλακτικότητα σε ραγδαίες αλλαγές)
-
-CRITICAL: Conduct searches in GREEK when possible for Greek sources. ALL responses must be in GREEK with objectivity.
-"""
+        from ..search_params_builder import get_search_params_for_bias_analysis
+        from urllib.parse import urlparse
+        
+        # Extract domain from article URL to exclude it
+        article_url = context.get('article_url', '')
+        parsed_url = urlparse(article_url)
+        article_domain = parsed_url.netloc.replace('www.', '') if parsed_url.netloc else None
+        
+        return get_search_params_for_bias_analysis(mode="on", article_domain=article_domain)
 
 BIAS_ANALYSIS_SCHEMA = {
     "type": "object",

@@ -232,23 +232,23 @@ def get_timeline_schema() -> dict:
     return {
         "type": "object",
         "properties": {
+            "story_title": {"type": "string", "description": "Τίτλος της ιστορίας"},
             "events": {
                 "type": "array",
                 "items": {
                     "type": "object",
                     "properties": {
-                        "date": {"type": "string"},
-                        "event": {"type": "string"},
-                        "significance": {"type": "string"},
-                        "sources": {
-                            "type": "array",
-                            "items": {"type": "string", "format": "url"},
-                            "minItems": 1
-                        }
+                        "date": {"type": "string", "description": "Ημερομηνία (YYYY-MM-DD)"},
+                        "title": {"type": "string", "description": "Τίτλος του γεγονότος"},
+                        "description": {"type": "string", "description": "Περιγραφή του γεγονότος"},
+                        "importance": {"type": "string", "enum": ["υψηλή", "μέτρια", "χαμηλή"], "description": "Σημασία του γεγονότος"},
+                        "source": {"type": "string", "description": "Πηγή της πληροφορίας"}
                     },
-                    "required": ["date", "event", "significance", "sources"]
+                    "required": ["date", "title", "description", "importance", "source"]
                 }
-            }
+            },
+            "context": {"type": "string", "description": "Ιστορικό πλαίσιο"},
+            "future_implications": {"type": "string", "description": "Μελλοντικές εξελίξεις"}
         },
         "required": ["events"]
     }
@@ -261,22 +261,27 @@ def get_expert_opinions_schema() -> dict:
     return {
         "type": "object",
         "properties": {
-            "opinions": {
+            "topic_summary": {"type": "string", "description": "Περίληψη του θέματος του άρθρου"},
+            "experts": {
                 "type": "array",
                 "items": {
                     "type": "object",
                     "properties": {
-                        "expert_name": {"type": "string"},
-                        "expert_title": {"type": "string"},
-                        "opinion": {"type": "string"},
-                        "date": {"type": "string"},
-                        "source_url": {"type": "string", "format": "url"}
+                        "name": {"type": "string", "description": "Όνομα του ειδικού"},
+                        "credentials": {"type": "string", "description": "Τίτλος/ιδιότητα του ειδικού"},
+                        "opinion": {"type": "string", "description": "Γνώμη του ειδικού"},
+                        "quote": {"type": "string", "description": "Απευθείας απόσπασμα από τον ειδικό"},
+                        "source": {"type": "string", "description": "Τύπος πηγής (x, news, web)"},
+                        "source_url": {"type": "string", "format": "url", "description": "URL της πηγής"},
+                        "stance": {"type": "string", "enum": ["υποστηρικτική", "αντίθετη", "ουδέτερη"], "description": "Στάση απέναντι στο θέμα"}
                     },
-                    "required": ["expert_name", "expert_title", "opinion", "source_url"]
+                    "required": ["name", "credentials", "opinion", "source", "source_url"]
                 }
-            }
+            },
+            "consensus": {"type": "string", "description": "Συναίνεση μεταξύ των ειδικών"},
+            "key_debates": {"type": "string", "description": "Κύρια σημεία διαφωνίας"}
         },
-        "required": ["opinions"]
+        "required": ["topic_summary", "experts"]
     }
 
 

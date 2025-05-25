@@ -76,8 +76,23 @@ class AnalysisHandler:
             yield self.stream_event("error", {"message": "Unexpected error fetching article."})
             return
         
-        # Prepare search parameters
+        # Prepare search parameters with domain exclusion
+        from urllib.parse import urlparse
+        parsed_url = urlparse(article_url)
+        article_domain = parsed_url.netloc.replace('www.', '')  # Remove www prefix if present
+        print(f"[get_augmentations_stream] Excluding current article domain from search: {article_domain}", flush=True)
+        
         search_params = self.grok_client.get_default_search_params()
+        
+        # Add excluded websites for the current article domain
+        if 'sources' in search_params:
+            for source in search_params['sources']:
+                if source.get('type') in ['web', 'news']:
+                    if 'excluded_websites' not in source:
+                        source['excluded_websites'] = []
+                    if article_domain not in source['excluded_websites']:
+                        source['excluded_websites'].append(article_domain)
+        
         final_results = {"jargon": None, "jargon_citations": [], "viewpoints": None, "viewpoints_citations": []}
         
         # Get jargon explanations
@@ -85,13 +100,23 @@ class AnalysisHandler:
             print("[get_augmentations_stream] Preparing for Grok jargon call...", flush=True)
             yield self.stream_event("progress", {"status": "Explaining terms and concepts..."})
             
-            jargon_prompt = GROK_CONTEXT_JARGON_PROMPT_SCHEMA + "\n\nΆρθρο:\n" + article_text
-            json_schema = JargonResponse.model_json_schema()
+            # Use proper prompt utilities
+            from .prompt_utils import (
+                get_jargon_task_instruction, 
+                get_jargon_response_schema,
+                build_prompt,
+                inject_runtime_search_context
+            )
+            
+            task_instruction = get_jargon_task_instruction(article_text)
+            json_schema = get_jargon_response_schema()
+            system_prompt = build_prompt(task_instruction, json_schema)
+            system_prompt = inject_runtime_search_context(system_prompt, search_params)
             
             jargon_completion = self.grok_client.create_completion(
-                prompt=jargon_prompt,
+                prompt=system_prompt,
                 search_params=search_params,
-                response_format={"type": "json_object", "schema": json_schema},
+                response_format={"type": "json_object"},
                 stream=False
             )
             
@@ -114,11 +139,23 @@ class AnalysisHandler:
             print("[get_augmentations_stream] Preparing for Grok viewpoints call...", flush=True)
             yield self.stream_event("progress", {"status": "Finding alternative viewpoints..."})
             
-            viewpoints_prompt = GROK_ALTERNATIVE_VIEWPOINTS_PROMPT + "\n\nΠρωτότυπο Άρθρο για контекст:\n" + article_text
+            # Use proper prompt utilities
+            from .prompt_utils import (
+                get_alt_view_task_instruction,
+                get_alternative_viewpoints_schema,
+                build_prompt,
+                inject_runtime_search_context
+            )
+            
+            task_instruction = get_alt_view_task_instruction(article_text)
+            json_schema = get_alternative_viewpoints_schema()
+            system_prompt = build_prompt(task_instruction, json_schema)
+            system_prompt = inject_runtime_search_context(system_prompt, search_params)
             
             viewpoints_completion = self.grok_client.create_completion(
-                prompt=viewpoints_prompt,
+                prompt=system_prompt,
                 search_params=search_params,
+                response_format={"type": "json_object"},
                 stream=False
             )
             

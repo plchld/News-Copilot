@@ -23,7 +23,7 @@ class FactCheckAgent(AnalysisAgent):
         return cls(
             config=config,
             grok_client=grok_client,
-            prompt_builder=lambda ctx: GROK_FACT_CHECK_PROMPT,
+            prompt_builder=cls._build_fact_check_prompt,
             schema_builder=lambda: {
                 "type": "object",
                 "properties": {
@@ -51,41 +51,22 @@ class FactCheckAgent(AnalysisAgent):
             }
         )
     
+    @staticmethod
+    def _build_fact_check_prompt(context: Dict[str, Any]) -> str:
+        """Build optimized prompt for fact-checking"""
+        # The full article text is passed via the user message in base_agent
+        return """Verify the main claims, statistics, dates, and events in the article.
+Focus on the 3-5 most important claims.
+ALL explanations and warnings must be in GREEK."""
+    
     def _build_search_params(self, context: Dict[str, Any]) -> Optional[Dict]:
         """Build search parameters for fact-checking"""
-        # Build search params for fact-checking
-        return {
-            "mode": "on",
-            "sources": [
-                {"type": "web"},
-                {"type": "news"}
-            ],
-            "return_citations": True,
-            "max_search_results": 25
-        }
-
-
-# Import the prompt from prompts.py
-GROK_FACT_CHECK_PROMPT = """Analyze the news article below for fact-checking.
-
-Using Live Search, verify the main claims, statistics, dates, and events mentioned in the article.
-
-Return JSON with the structure:
-{
-  "overall_credibility": "υψηλή/μέτρια/χαμηλή",
-  "claims": [
-    {
-      "statement": "The specific claim from the article",
-      "verified": true/false,
-      "explanation": "Verification explanation in Greek",
-      "sources": ["source1", "source2"]
-    }
-  ],
-  "red_flags": ["Warning 1", "Warning 2"],
-  "missing_context": "Information that is missing or needs clarification"
-}
-
-Focus on the 3-5 most important claims. 
-
-CRITICAL: Conduct searches in GREEK when possible. ALL responses must be in GREEK.
-"""
+        from ..search_params_builder import get_search_params_for_fact_check
+        from urllib.parse import urlparse
+        
+        # Extract domain from article URL to exclude it
+        article_url = context.get('article_url', '')
+        parsed_url = urlparse(article_url)
+        article_domain = parsed_url.netloc.replace('www.', '') if parsed_url.netloc else None
+        
+        return get_search_params_for_fact_check(mode="on", article_domain=article_domain)

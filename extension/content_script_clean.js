@@ -207,6 +207,11 @@ function renderOverview(jargonData, viewpointsData, panel) {
                 <strong>Απόψεις Ειδικών</strong>
                 <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">Από X & ειδήσεις</div>
             </button>
+            <button class="analysis-option" data-analysis="x-pulse" style="padding: 10px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s; font-size: 12px; text-align: left;">
+                <span style="font-size: 16px; margin-right: 4px;">𝕏</span>
+                <strong>X Pulse</strong>
+                <div style="font-size: 11px; color: #6b7280; margin-top: 2px;">Ανάλυση συζήτησης στο X</div>
+            </button>
         </div>
     `;
     
@@ -639,6 +644,12 @@ function handleProgressiveAnalysis(analysisType) {
             // Add more specific search parameters for experts
             searchParams.max_results = 10; // Limit results for quality
             break;
+        case 'x-pulse':
+            searchParams.sources = [
+                { type: "x" }
+            ];
+            searchParams.max_results = 30; // More results for comprehensive analysis
+            break;
         default:
             searchParams.sources = [
                 { type: "web" },
@@ -717,6 +728,11 @@ function displayDeepAnalysis(analysisType, data, citations = []) {
                     icon = '🎓';
                     title = 'Απόψεις Ειδικών';
                     content = formatExpertOpinions(data);
+                    break;
+                case 'x-pulse':
+                    icon = '𝕏';
+                    title = 'X Pulse - Ανάλυση Συζήτησης';
+                    content = formatXPulseAnalysis(data);
                     break;
                 default:
                     throw new Error(`Unknown analysis type: ${analysisType}`);
@@ -1219,6 +1235,127 @@ function formatExpertOpinions(data) {
     }
 }
 
+function formatXPulseAnalysis(data) {
+    try {
+        if (!data) {
+            return '<div style="padding: 20px; text-align: center; color: #6b7280;">Δεν υπάρχουν δεδομένα για εμφάνιση</div>';
+        }
+        
+        const sentimentColors = {
+            'θετικό': '#16a34a',
+            'αρνητικό': '#dc2626', 
+            'μικτό': '#f59e0b',
+            'ουδέτερο': '#6b7280'
+        };
+        
+        const sentimentEmojis = {
+            'θετικό': '😊',
+            'αρνητικό': '😠',
+            'μικτό': '🤔',
+            'ουδέτερο': '😐'
+        };
+        
+        return `
+            <div class="x-pulse-analysis">
+                ${data.overall_discourse_summary ? `
+                    <div style="padding: 16px; background: linear-gradient(135deg, #1d9bf0 0%, #1976d2 100%); border-radius: 12px; margin-bottom: 20px; color: white;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                            <div style="width: 48px; height: 48px; background: rgba(255,255,255,0.2); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 24px;">𝕏</span>
+                            </div>
+                            <h3 style="margin: 0; font-size: 18px; font-weight: 600;">Συνολική Εικόνα Συζήτησης</h3>
+                        </div>
+                        <p style="margin: 0; font-size: 14px; line-height: 1.6; opacity: 0.95;">${linkifyXPosts(data.overall_discourse_summary)}</p>
+                    </div>
+                ` : ''}
+                
+                ${data.discussion_themes && Array.isArray(data.discussion_themes) && data.discussion_themes.length > 0 ? `
+                    <div style="margin-bottom: 16px;">
+                        <h4 style="margin: 0 0 12px 0; color: #1e293b; font-size: 16px; font-weight: 600;">
+                            <span style="color: #1d9bf0;">📊</span> Θεματικές Συζητήσεις (${data.discussion_themes.length})
+                        </h4>
+                        ${data.discussion_themes.map((theme, index) => {
+                            const sentimentColor = sentimentColors[theme.sentiment_around_theme] || sentimentColors['ουδέτερο'];
+                            const sentimentEmoji = sentimentEmojis[theme.sentiment_around_theme] || sentimentEmojis['ουδέτερο'];
+                            
+                            return `
+                                <div style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 12px; position: relative; overflow: hidden;">
+                                    <!-- Theme Header -->
+                                    <div style="display: flex; align-items: start; gap: 12px; margin-bottom: 12px;">
+                                        <div style="width: 36px; height: 36px; background: #f0f9ff; border: 2px solid #1d9bf0; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                                            <span style="font-size: 14px; font-weight: 600; color: #1d9bf0;">${index + 1}</span>
+                                        </div>
+                                        <div style="flex: 1;">
+                                            <h5 style="margin: 0 0 4px 0; color: #1e293b; font-size: 15px; font-weight: 600;">${theme.theme_title}</h5>
+                                            <p style="margin: 0 0 8px 0; font-size: 13px; color: #475569; line-height: 1.5;">${theme.theme_summary}</p>
+                                            <div style="display: flex; align-items: center; gap: 6px;">
+                                                <span style="font-size: 18px;">${sentimentEmoji}</span>
+                                                <span style="font-size: 11px; color: white; background: ${sentimentColor}; padding: 3px 8px; border-radius: 12px; font-weight: 500;">
+                                                    ${theme.sentiment_around_theme}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Representative Posts -->
+                                    ${theme.representative_posts && theme.representative_posts.length > 0 ? `
+                                        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #f3f4f6;">
+                                            <div style="font-size: 12px; color: #6b7280; margin-bottom: 8px; font-weight: 500;">
+                                                <span style="color: #1d9bf0;">💬</span> Αντιπροσωπευτικές αναρτήσεις:
+                                            </div>
+                                            ${theme.representative_posts.map(post => `
+                                                <div style="background: #f8fafc; border-left: 3px solid #1d9bf0; padding: 10px 12px; margin-bottom: 8px; border-radius: 0 6px 6px 0;">
+                                                    <div style="font-size: 13px; color: #334155; line-height: 1.5; margin-bottom: 4px;">
+                                                        "${linkifyXPosts(post.post_content)}"
+                                                    </div>
+                                                    <div style="font-size: 11px; color: #64748b; display: flex; align-items: center; gap: 4px;">
+                                                        <span>📍</span> ${post.post_source_description}
+                                                    </div>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                ` : '<p style="color: #6b7280; text-align: center; padding: 20px;">Δεν βρέθηκαν θεματικές συζητήσεις</p>'}
+                
+                <!-- Data Caveat Warning -->
+                ${data.data_caveats ? `
+                    <div style="padding: 12px 16px; background: #fef3c7; border: 1px solid #fde68a; border-radius: 8px; margin-top: 16px;">
+                        <div style="display: flex; align-items: start; gap: 10px;">
+                            <span style="font-size: 16px; flex-shrink: 0;">⚠️</span>
+                            <div>
+                                <strong style="color: #92400e; font-size: 12px; display: block; margin-bottom: 4px;">Σημαντική Επισήμανση</strong>
+                                <p style="margin: 0; font-size: 11px; line-height: 1.5; color: #78350f;">${data.data_caveats}</p>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                <!-- X Platform Note -->
+                <div style="padding: 12px; background: #f0f9ff; border: 1px solid #bfdbfe; border-radius: 8px; margin-top: 12px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 16px;">ℹ️</span>
+                        <strong style="color: #1e40af; font-size: 12px;">Σχετικά με το X Pulse</strong>
+                    </div>
+                    <p style="margin: 4px 0 0 0; font-size: 11px; line-height: 1.4; color: #1e40af;">
+                        Η ανάλυση X Pulse χρησιμοποιεί προηγμένη τεχνητή νοημοσύνη με 5 εξειδικευμένους υπο-πράκτορες για να αναλύσει τη συζήτηση στο X/Twitter. 
+                        Εντοπίζει θέματα, αναλύει συναίσθημα και συνθέτει αντιπροσωπευτικές απόψεις από τη διαδικτυακή συζήτηση.
+                    </p>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error in formatXPulseAnalysis:', error);
+        return `<div style="padding: 20px; text-align: center; color: #dc2626;">
+            <h4>Σφάλμα μορφοποίησης</h4>
+            <p>Υπήρξε πρόβλημα με την εμφάνιση της ανάλυσης X Pulse.</p>
+        </div>`;
+    }
+}
+
 // Add error handling for analysis
 function showAnalysisError(analysisType, errorMessage = 'Αποτυχία φόρτωσης ανάλυσης. Δοκιμάστε ξανά.') {
     const notification = document.createElement('div');
@@ -1242,7 +1379,8 @@ function showAnalysisError(analysisType, errorMessage = 'Αποτυχία φόρ
         'fact-check': 'Έλεγχος Γεγονότων',
         'bias': 'Ανάλυση Μεροληψίας', 
         'timeline': 'Χρονολόγιο',
-        'expert': 'Απόψεις Ειδικών'
+        'expert': 'Απόψεις Ειδικών',
+        'x-pulse': 'X Pulse Ανάλυση'
     };
     
     notification.innerHTML = `

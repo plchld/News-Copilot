@@ -32,7 +32,8 @@ def build_search_params(
         sources: List of source dicts e.g. [{"type":"web"}, {"type":"x"}]
         country: Country code for web/news sources (default: "GR")
         language: Language code in ISO 639-1 format (default: "el" for Greek)
-        include_english: Also search in English for international topics
+        include_english: If True, searches in English instead of the specified language
+                        (useful for international topics to avoid duplicate sources)
         from_date: Start date in ISO format "YYYY-MM-DD"
         to_date: End date in ISO format "YYYY-MM-DD"
         max_results: Maximum search results to return
@@ -48,39 +49,26 @@ def build_search_params(
     # Default sources if none provided
     default_sources = [{"type": "web"}, {"type": "news"}]
     
-    # If include_english is True and we're searching Greek, duplicate sources for English
+    # Handle multilingual search without duplicating sources
     if include_english and language == "el":
-        # Create both Greek and English versions of web/news sources
-        processed_sources = []
-        base_sources = sources if sources is not None else default_sources
-        
-        for source in base_sources:
-            if source.get("type") in ("web", "news"):
-                # Greek version
-                processed_sources.append(source)
-                # English version
-                english_source = dict(source)
-                english_source["_english_variant"] = True  # Internal marker
-                processed_sources.append(english_source)
-            else:
-                # X and RSS sources don't need duplication
-                processed_sources.append(source)
+        # For international topics, we'll use English as the primary language
+        # This gives us broader coverage without duplicating sources
+        processed_sources = sources if sources is not None else default_sources
+        # Mark that we should use English for web/news sources
+        effective_language = "en"
     else:
         processed_sources = sources if sources is not None else default_sources
+        effective_language = language
 
     def enrich_source(source_item: dict) -> dict:
         """Enrich a source dict with additional parameters based on its type."""
         enriched = dict(source_item)  # Work on a copy
         source_type = enriched.get("type")
-        is_english_variant = enriched.pop("_english_variant", False)
 
         # Enrich web/news sources
         if source_type in ("web", "news"):
-            # Set language - English variant or specified language
-            if is_english_variant:
-                enriched["language"] = "en"
-            else:
-                enriched["language"] = language
+            # Use the effective language determined above
+            enriched["language"] = effective_language
                 
             if country:
                 enriched["country"] = country
@@ -320,6 +308,9 @@ def get_search_params_for_x_pulse(mode: str = "on", keywords: List[str] = None,
     
     TRANSPARENCY: No curated account lists - Grok finds relevant discussions organically
     based on article content and keywords to avoid bias.
+    
+    For international topics (Ukraine, Russia, EU, etc.), we automatically search
+    in English to get broader coverage without duplicating sources.
     
     Args:
         mode: Search mode (on/auto)

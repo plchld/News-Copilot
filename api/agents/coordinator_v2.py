@@ -92,6 +92,57 @@ class EnhancedAgentCoordinator:
             AnalysisType.X_PULSE: self._check_x_pulse_quality,
         }
     
+    async def refine_agent_result(
+        self,
+        agent: BaseAgent,
+        initial_result: AgentResult,
+        quality_result: QualityCheckResult,
+        context: Dict[str, Any]
+    ) -> AgentResult:
+        """
+        Refine agent result using conversation-based approach
+        
+        Uses xAI's conversation capability to iteratively improve results
+        """
+        try:
+            # Build conversation history
+            conversation_history = [
+                {
+                    "role": "assistant",
+                    "content": json.dumps(initial_result.data, ensure_ascii=False)
+                },
+                {
+                    "role": "user", 
+                    "content": quality_result.refinement_prompt
+                }
+            ]
+            
+            # Add conversation history to context
+            refinement_context = {
+                **context,
+                'conversation_history': conversation_history,
+                'is_refinement': True,
+                'refinement_attempt': 1
+            }
+            
+            # Execute agent with conversation history
+            refined_result = await agent.execute(refinement_context)
+            
+            if refined_result.success:
+                self.logger.info(
+                    f"Successfully refined {agent.config.name} output"
+                )
+                return refined_result
+            else:
+                self.logger.warning(
+                    f"Refinement failed for {agent.config.name}: {refined_result.error}"
+                )
+                return initial_result
+                
+        except Exception as e:
+            self.logger.error(f"Error during refinement: {str(e)}")
+            return initial_result
+    
     async def analyze_article_with_quality_control(
         self,
         article_url: str,

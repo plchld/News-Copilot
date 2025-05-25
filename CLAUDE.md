@@ -146,13 +146,19 @@ The project uses pytest with the following structure:
 - **CORS Setup**: Configured for Vercel deployment and localhost:8080
 
 ### Prompt System
-All AI prompts are centralized in `prompts.py`:
-- `GROK_CONTEXT_JARGON_PROMPT_SCHEMA`: Term explanations with JSON schema
-- `GROK_ALTERNATIVE_VIEWPOINTS_PROMPT`: Multi-source perspective analysis
-- `GROK_FACT_CHECK_PROMPT`: Claim verification with credibility scoring
-- `GROK_BIAS_ANALYSIS_PROMPT`: Political lean and tone analysis
-- `GROK_TIMELINE_PROMPT`: Event chronology with context
-- `GROK_EXPERT_OPINIONS_PROMPT`: Expert quote collection with source validation
+The prompt system follows a standardized architecture (see `PROMPT_ARCHITECTURE.md`):
+
+**Core Components**:
+- `prompt_utils.py`: Centralized prompt utilities with SYSTEM_PREFIX and TRUST_GUARDRAILS
+- Task instruction generators for each analysis type
+- Automatic inclusion of scratchpad technique for reasoning
+- Support for conversation-based refinement
+
+**All agents now use**:
+- Proper prompt utilities from `prompt_utils.py`
+- Centralized search parameter builders with domain exclusion
+- Conversation history for iterative refinement
+- Consistent Greek output requirements
 
 ### Chrome Extension Structure
 - **manifest.json**: Configured for 50+ Greek news sites with Supabase permissions

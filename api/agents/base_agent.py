@@ -190,9 +190,21 @@ class AnalysisAgent(BaseAgent):
                 )
             else:
                 # Standard completion
+                # Import prompt utilities for consistent formatting
+                from ..prompt_utils import build_prompt, inject_runtime_search_context
+                
+                # If prompt doesn't already include system prefix and guardrails, add them
+                if "News-Copilot" not in prompt:
+                    # Rebuild prompt with proper structure
+                    system_prompt = build_prompt(prompt, schema)
+                    system_prompt = inject_runtime_search_context(system_prompt, search_params)
+                else:
+                    # Prompt already includes system components
+                    system_prompt = prompt
+                
                 # Build messages for chat completion
                 messages = [
-                    {"role": "system", "content": prompt},
+                    {"role": "system", "content": system_prompt},
                     {"role": "user", "content": context.get('article_text', '')}
                 ]
                 

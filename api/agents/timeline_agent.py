@@ -20,7 +20,7 @@ class TimelineAgent(AnalysisAgent):
         return cls(
             config=config,
             grok_client=grok_client,
-            prompt_builder=lambda ctx: "Create a timeline for the events in this article. Use Live Search to find historical context. All output in Greek.",
+            prompt_builder=cls._build_timeline_prompt,
             schema_builder=lambda: {
                 "type": "object",
                 "properties": {
@@ -44,20 +44,22 @@ class TimelineAgent(AnalysisAgent):
             }
         )
     
+    @staticmethod
+    def _build_timeline_prompt(context: Dict[str, Any]) -> str:
+        """Build optimized prompt for timeline creation"""
+        # Use the timeline task instruction from prompt_utils
+        from ..prompt_utils import get_timeline_task_instruction
+        article_text = context.get('article_text', '')
+        return get_timeline_task_instruction(article_text)
+    
     def _build_search_params(self, context: Dict[str, Any]) -> Optional[Dict]:
-        # Build search params for timeline with date range
-        from datetime import datetime, timedelta
-        today = datetime.now().date()
-        from_date = (today - timedelta(days=30)).isoformat()
+        """Build search parameters for timeline analysis"""
+        from ..search_params_builder import get_search_params_for_timeline
+        from urllib.parse import urlparse
         
-        return {
-            "mode": "on",
-            "sources": [
-                {"type": "news"},
-                {"type": "web"}
-            ],
-            "from_date": from_date,
-            "to_date": today.isoformat(),
-            "return_citations": True,
-            "max_search_results": 15
-        }
+        # Extract domain from article URL to exclude it
+        article_url = context.get('article_url', '')
+        parsed_url = urlparse(article_url)
+        article_domain = parsed_url.netloc.replace('www.', '') if parsed_url.netloc else None
+        
+        return get_search_params_for_timeline(mode="on", article_domain=article_domain)

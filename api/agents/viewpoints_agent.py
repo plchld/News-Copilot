@@ -23,7 +23,7 @@ class ViewpointsAgent(AnalysisAgent):
         return cls(
             config=config,
             grok_client=grok_client,
-            prompt_builder=lambda ctx: GROK_ALTERNATIVE_VIEWPOINTS_PROMPT,
+            prompt_builder=cls._build_viewpoints_prompt,
             schema_builder=lambda: {
                 "type": "object",
                 "properties": {
@@ -35,17 +35,36 @@ class ViewpointsAgent(AnalysisAgent):
             }
         )
     
+    @staticmethod
+    def _build_viewpoints_prompt(context: Dict[str, Any]) -> str:
+        """Build optimized prompt for finding alternative viewpoints"""
+        # The full article text is passed via the user message in base_agent
+        return """Find other credible news articles covering the SAME story.
+Summarize in 4-8 bullet points how their coverage differs or adds to the original story.
+Mention new facts, different perspectives, missing details, or conflicting statements.
+ALL output must be in GREEK. Include source citations."""
+    
     def _build_search_params(self, context: Dict[str, Any]) -> Optional[Dict]:
         """Build search parameters for finding alternative viewpoints"""
-        return {
-            "mode": "on",
-            "sources": [
+        from ..search_params_builder import build_search_params, create_exclusion_map_with_article_domain
+        from urllib.parse import urlparse
+        
+        # Extract domain from article URL to exclude it
+        article_url = context.get('article_url', '')
+        parsed_url = urlparse(article_url)
+        article_domain = parsed_url.netloc.replace('www.', '') if parsed_url.netloc else None
+        
+        # Alternative viewpoints should always exclude the source
+        return build_search_params(
+            mode="on",
+            sources=[
                 {"type": "news"},
-                {"type": "web"}
+                {"type": "web"},
+                {"type": "x"}
             ],
-            "return_citations": True,
-            "max_search_results": 20
-        }
+            excluded_websites_map=create_exclusion_map_with_article_domain(article_domain),
+            max_results=20
+        )
     
     async def _call_grok(self, prompt: str, schema: Dict, model: ModelType,
                         search_params: Optional[Dict], context: Dict) -> Dict:

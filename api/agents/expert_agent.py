@@ -20,7 +20,7 @@ class ExpertOpinionsAgent(AnalysisAgent):
         return cls(
             config=config,
             grok_client=grok_client,
-            prompt_builder=lambda ctx: "Find expert opinions on this topic using Live Search. Focus on X/Twitter and news sources. All output in Greek.",
+            prompt_builder=cls._build_expert_prompt,
             schema_builder=lambda: {
                 "type": "object",
                 "properties": {
@@ -46,15 +46,22 @@ class ExpertOpinionsAgent(AnalysisAgent):
             }
         )
     
+    @staticmethod
+    def _build_expert_prompt(context: Dict[str, Any]) -> str:
+        """Build optimized prompt for expert opinions"""
+        # Use the expert opinions task instruction from prompt_utils
+        from ..prompt_utils import get_expert_opinions_task_instruction
+        article_text = context.get('article_text', '')
+        return get_expert_opinions_task_instruction(article_text)
+    
     def _build_search_params(self, context: Dict[str, Any]) -> Optional[Dict]:
-        # Build search params for expert opinions
-        return {
-            "mode": "on",
-            "sources": [
-                {"type": "x"},
-                {"type": "news"},
-                {"type": "web"}
-            ],
-            "return_citations": True,
-            "max_search_results": 20
-        }
+        """Build search parameters for expert opinions"""
+        from ..search_params_builder import get_search_params_for_expert_opinions
+        from urllib.parse import urlparse
+        
+        # Extract domain from article URL to exclude it
+        article_url = context.get('article_url', '')
+        parsed_url = urlparse(article_url)
+        article_domain = parsed_url.netloc.replace('www.', '') if parsed_url.netloc else None
+        
+        return get_search_params_for_expert_opinions(mode="on", article_domain=article_domain)
