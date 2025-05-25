@@ -34,3 +34,14 @@ RATE_LIMITS = {
     'premium': 50,
     'admin': 999999
 }
+
+# Search Configuration
+DEFAULT_COUNTRY_CODE = os.getenv("DEFAULT_COUNTRY_CODE", "GR")
+DEFAULT_LANGUAGE_CODE = os.getenv("DEFAULT_LANGUAGE_CODE", "el")
+DEFAULT_SEARCH_MODE_FREE_TIER = os.getenv("DEFAULT_SEARCH_MODE_FREE_TIER", "auto")
+DEFAULT_SEARCH_MODE_PREMIUM_TIER = os.getenv("DEFAULT_SEARCH_MODE_PREMIUM_TIER", "on")
+EXCLUDED_SITES_CONFIG_PATH = os.getenv("EXCLUDED_SITES_CONFIG_PATH", "config/low_quality_sites.yml")
+
+# X Pulse Configuration
+X_PULSE_MAX_THEMES = int(os.getenv("X_PULSE_MAX_THEMES", "5"))
+X_PULSE_MAX_POSTS_PER_THEME = int(os.getenv("X_PULSE_MAX_POSTS_PER_THEME", "2"))

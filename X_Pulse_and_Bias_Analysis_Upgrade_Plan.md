@@ -97,7 +97,6 @@ This step combines the idea of filtering high-signal posts and performing in-dep
         c.  Extract or summarize 1-2 representative X posts (tweets) that clearly illustrate this theme/viewpoint. Attribute them generally (e.g., "an X user stated...") unless the source is a verified public figure or organization explicitly making a statement. Focus on the content of the discourse.
         d.  Briefly describe the general sentiment or tone surrounding this theme on X (e.g., "Critical concern", "Strongly supportive", "Mixed reactions", "Informative discussion").
     4.  Provide an overall summary of the X discourse related to the article's topic.
-    5.  Include a standard disclaimer about the nature of X data.
 
     Original Article for Context (do not summarize the article itself in the output, use it for context only):
     {article_text}

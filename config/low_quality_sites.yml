@@ -1,0 +1,26 @@
+# IMPORTANT DISCLAIMER:
+# The act of excluding websites introduces inherent bias into the analysis.
+# This file should be:
+# 1. Publicly visible and transparent
+# 2. User-configurable (users should be able to override)
+# 3. Clearly documented with reasoning for each exclusion
+# 4. Regularly reviewed and open to challenge
+
+# This is an EMPTY template - no sites are excluded by default
+# Users and administrators can add sites here with clear justification
+
+web:
+  # Example format (commented out):
+  # - domain.com  # Reason: [specific, verifiable reason for exclusion]
+
+news:
+  # Example format (commented out):
+  # - news-site.gr  # Reason: [specific, verifiable reason for exclusion]
+
+# TRANSPARENCY NOTICE:
+# Any domains added here will affect the analysis results
+# Users have the right to:
+# - View this list
+# - Disable exclusions entirely
+# - Use their own exclusion list
+# - See when exclusions are applied in their analysis

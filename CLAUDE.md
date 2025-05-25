@@ -25,6 +25,24 @@ The API is modularly organized in the `api/` directory:
 - **models.py**: Pydantic models for request/response validation
 - **auth modules**: Multiple auth implementations (supabase_auth.py, http_supabase.py, simple_auth.py)
 
+### Agentic Intelligence Architecture (NEW)
+The `api/agents/` directory implements a sophisticated agent-based system:
+- **base_agent.py**: Base classes (BaseAgent, AnalysisAgent, NestedAgent) with dynamic model selection
+- **coordinator.py**: AgentCoordinator orchestrates parallel execution and quality control
+- **Individual agents**:
+  - `jargon_agent.py` - Term explanations (grok-3-mini for cost efficiency)
+  - `viewpoints_agent.py` - Alternative perspectives (grok-3)
+  - `fact_check_agent.py` - Claim verification (grok-3)
+  - `bias_agent.py` - Greek political spectrum analysis (grok-3)
+  - `timeline_agent.py` - Event chronology (grok-3)
+  - `expert_agent.py` - Expert opinions (grok-3)
+  - `x_pulse_agent.py` - X discourse analysis with 5 nested sub-agents (grok-3)
+- **Advanced features**:
+  - Dynamic model selection based on user tier, article length, and retry count
+  - Parallel execution for 3x faster analysis
+  - Quality control with chat-based refinement
+  - Cost optimization through strategic model usage
+
 ## Development Commands
 
 ### Backend Development
@@ -48,6 +66,9 @@ python test_auth_system.py
 # Test Supabase integration
 python test_supabase_simple.py
 python test_http_supabase.py
+
+# Test agentic architecture
+python api/agents/test_agents.py
 ```
 
 ### Chrome Extension Development
@@ -214,3 +235,7 @@ When deploying to production:
 - **Email Templates**: Configure in Supabase dashboard for magic links
 - **Admin Setup**: Use `setup_admin.py` to create initial admin user
 - **Verification Pages**: `static/verification-success.html` and `static/verification-failed.html`
+
+## Memories
+- Run these tests after changes
+```

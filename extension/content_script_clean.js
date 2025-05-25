@@ -874,44 +874,66 @@ function formatFactCheckResults(data) {
     try {
         console.log('formatFactCheckResults received data:', data);
         
-        if (!data) {
-            return '<div style="padding: 20px; text-align: center; color: #6b7280;">Δεν υπάρχουν δεδομένα για εμφάνιση</div>';
+        if (!data || !data.claims) { // Added check for data.claims
+            return '<div style="padding: 20px; text-align: center; color: #6b7280;">Δεν υπάρχουν δεδομένα αξιόπιστων ισχυρισμών για εμφάνιση.</div>';
         }
         
+        // Top-level overall_credibility and source_quality - these might not be in the new Grok direct response
+        // The new Grok response has source_quality, but not overall_credibility directly at the top for fact-check schema
+        // We will adjust this part if needed, for now focusing on claims
+        const overallCredibilityText = data.source_quality?.overall_assessment || 'Άγνωστη'; // Example: try to get from source_quality if available
         const credibilityColors = {
             'υψηλή': '#16a34a',
             'μέτρια': '#f59e0b', 
-            'χαμηλή': '#dc2626'
+            'χαμηλή': '#dc2626',
+            'Άγνωστη': '#6b7280' // Default for unknown
         };
-        
-        const credibilityColor = credibilityColors[data.overall_credibility] || '#6b7280';
+        const credibilityColor = credibilityColors[overallCredibilityText] || credibilityColors['Άγνωστη'];
+
+        // Mapping for evidence_assessment to text and color
+        const evidenceMap = {
+            'ισχυρά τεκμηριωμένο': { text: '✓ Ισχυρά Τεκμηριωμένο', color: '#16a34a' },
+            'μερικώς τεκμηριωμένο': { text: '✓ Μερικώς Τεκμηριωμένο', color: '#10b981' }, // Slightly different green
+            'αμφιλεγόμενο': { text: '~ Αμφιλεγόμενο', color: '#f59e0b' },
+            'ελλιπώς τεκμηριωμένο': { text: '✗ Ελλιπώς Τεκμηριωμένο', color: '#ef4444' },
+            'χωρίς επαρκή στοιχεία': { text: '? Χωρίς Επαρκή Στοιχεία', color: '#6b7280' },
+            'εκτός πλαισίου': { text: ' контекст Εκτός Πλαισίου', color: '#8b5cf6' }
+        };
     
     return `
         <div class="fact-checks">
-            <div style="padding: 12px; background: ${data.overall_credibility === 'υψηλή' ? '#f0fdf4' : data.overall_credibility === 'μέτρια' ? '#fffbeb' : '#fef2f2'}; border: 1px solid ${credibilityColor}30; border-radius: 8px; margin-bottom: 12px;">
-                <strong style="color: ${credibilityColor};">📊 Συνολική Αξιοπιστία: ${data.overall_credibility || 'Άγνωστη'}</strong>
-                ${data.missing_context ? `<p style="margin: 8px 0 0 0; font-size: 13px; color: #6b7280;">${data.missing_context}</p>` : ''}
+            <div style="padding: 12px; background: ${overallCredibilityText === 'υψηλή' ? '#f0fdf4' : overallCredibilityText === 'μέτρια' ? '#fffbeb' : '#fef2f2'}; border: 1px solid ${credibilityColor}30; border-radius: 8px; margin-bottom: 12px;">
+                <strong style="color: ${credibilityColor};">📊 Συνολική Αξιολόγηση Πηγών: ${overallCredibilityText}</strong>
+                ${data.source_quality?.summary ? `<p style="margin: 8px 0 0 0; font-size: 13px; color: #6b7280;">${data.source_quality.summary}</p>` : ''} 
             </div>
             
-            ${data.claims && Array.isArray(data.claims) && data.claims.length > 0 ? data.claims.map(claim => `
+            ${data.claims && Array.isArray(data.claims) && data.claims.length > 0 ? data.claims.map(claim => {
+                const assessment = evidenceMap[claim.evidence_assessment] || { text: `? ${claim.evidence_assessment || 'Άγνωστη αξιολόγηση'}`, color: '#6b7280' };
+                const statementText = claim.claim || 'Δεν υπάρχει δήλωση';
+                const explanationText = claim.context || 'Δεν υπάρχει ανάλυση ή πλαίσιο.';
+
+                return `
                 <div style="padding: 12px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 8px;">
-                    <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">"${claim.statement || 'Δεν υπάρχει δήλωση'}"</div>
-                    <div style="font-size: 13px; color: ${claim.verified ? '#16a34a' : '#dc2626'}; margin-bottom: 8px;">
-                        ${claim.verified ? '✓ Επαληθευμένο' : '✗ Αμφισβητήσιμο'}: ${claim.explanation || 'Δεν υπάρχει εξήγηση'}
+                    <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">"${statementText}"</div>
+                    <div style="font-size: 13px; color: ${assessment.color}; margin-bottom: 8px;">
+                        <strong>${assessment.text}:</strong> ${explanationText}
                     </div>
+                    ${claim.complexity_note ? `<div style="font-size: 12px; color: #4b5563; margin-bottom: 8px; padding-left: 10px; border-left: 2px solid #d1d5db;"><em>Σημείωση Πολυπλοκότητας:</em> ${claim.complexity_note}</div>` : ''}
                     ${claim.sources && claim.sources.length > 0 ? `
                         <div style="font-size: 11px; color: #6b7280;">
-                            <strong>Πηγές:</strong> ${claim.sources.slice(0, 2).join(', ')}${claim.sources.length > 2 ? ` (+${claim.sources.length - 2} ακόμη)` : ''}
+                            <strong>Πηγές:</strong> ${claim.sources.map(src => `<a href="${src}" target="_blank" style="color: #4f46e5;">${new URL(src).hostname}</a>`).slice(0, 3).join(', ')}${claim.sources.length > 3 ? ` (+${claim.sources.length - 3} ακόμη)` : ''}
                         </div>
-                    ` : ''}
+                    ` : '<div style="font-size: 11px; color: #6b7280;">Δεν βρέθηκαν συγκεκριμένες πηγές για αυτόν τον ισχυρισμό.</div>'}
                 </div>
-            `).join('') : '<p style="color: #6b7280; text-align: center; padding: 20px;">Δεν βρέθηκαν συγκεκριμένοι ισχυρισμοί προς επαλήθευση</p>'}
+            `}).join('') : '<p style="color: #6b7280; text-align: center; padding: 20px;">Δεν εντοπίστηκαν συγκεκριμένοι ισχυρισμοί προς επαλήθευση σε αυτό το άρθρο.</p>'}
             
-            ${data.red_flags && Array.isArray(data.red_flags) && data.red_flags.length > 0 ? `
-                <div style="padding: 12px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; margin-top: 12px;">
-                    <strong style="color: #dc2626;">⚠️ Προσοχή:</strong>
-                    <ul style="margin: 8px 0 0 0; padding-left: 20px;">
-                        ${data.red_flags.map(flag => `<li style="font-size: 13px; margin-bottom: 4px;">${flag}</li>`).join('')}
+            ${data.source_quality ? `
+                <div style="padding: 12px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; margin-top: 12px;">
+                    <strong style="color: #374151;">🔍 Αξιολόγηση Ποιότητας Πηγών Άρθρου:</strong>
+                    <ul style="margin: 8px 0 0 0; padding-left: 20px; font-size: 13px; color: #4b5563;">
+                        <li>Πρωτογενείς Πηγές: ${data.source_quality.primary_sources !== undefined ? data.source_quality.primary_sources : 'N/A'}</li>
+                        <li>Δευτερογενείς Πηγές: ${data.source_quality.secondary_sources !== undefined ? data.source_quality.secondary_sources : 'N/A'}</li>
+                        <li>Ποικιλομορφία Πηγών: ${data.source_quality.source_diversity || 'N/A'}</li>
                     </ul>
                 </div>
             ` : ''}

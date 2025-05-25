@@ -19,6 +19,33 @@ chrome.storage.local.get(['auth_token', 'auth_user', 'auth_expires_at'], (result
   }
 });
 
+// Helper function to check and load auth state if necessary
+async function checkAndLoadAuthState() {
+  if (authState.token && authState.expiresAt > Date.now()) {
+    return; // In-memory authState is valid
+  }
+  // Try to load from storage if in-memory is not valid or background script just started
+  try {
+    const result = await new Promise(resolve =>
+      chrome.storage.local.get(['auth_token', 'auth_user', 'auth_expires_at'], data => resolve(data))
+    );
+    if (result && result.auth_token && result.auth_expires_at > Date.now()) {
+      authState = {
+        token: result.auth_token,
+        user: result.auth_user,
+        expiresAt: result.auth_expires_at
+      };
+      console.log("Background: Auth state reloaded/validated from storage.");
+    } else {
+      // No valid auth state in storage either
+      authState = { token: null, user: null, expiresAt: null };
+    }
+  } catch (e) {
+    console.error("Background: Error loading auth state from storage", e);
+    authState = { token: null, user: null, expiresAt: null };
+  }
+}
+
 // Handle auth state updates
 async function updateAuthState(token, user, expiresAt) {
   authState = { token, user, expiresAt };
@@ -95,205 +122,209 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Article augmentation
   if (message.type === "AUGMENT_ARTICLE") {
-    console.log("Background: Received AUGMENT_ARTICLE message with URL:", message.url);
-    
-    // Check if user is authenticated
-    if (!authState.token || authState.expiresAt < Date.now()) {
-      sendResponse({
-        success: false,
-        error: "Παρακαλώ συνδεθείτε πρώτα από το εικονίδιο της επέκτασης",
-        needsAuth: true
-      });
-      return true;
-    }
-
-    // Since EventSource doesn't support headers, we'll use fetch with streaming
-    const flaskServerUrl = `https://news-copilot.vercel.app/augment-stream?url=${encodeURIComponent(message.url)}`;
-    
-    console.log("Background: Making API call to:", flaskServerUrl);
-    console.log("Background: Auth token present:", !!authState.token);
-    
-    fetch(flaskServerUrl, {
-      headers: {
-        'Authorization': `Bearer ${authState.token.replace(/[^\x00-\x7F]/g, "")}`
-      }
-    })
-    .then(response => {
-      console.log("Background: Response status:", response.status);
-      console.log("Background: Response headers:", response.headers);
+    (async () => {
+      console.log("Background: Received AUGMENT_ARTICLE message with URL:", message.url);
+      await checkAndLoadAuthState(); // Ensure authState is fresh
       
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('AUTH_REQUIRED');
-        } else if (response.status === 429) {
-          throw new Error('RATE_LIMIT');
+      // Check if user is authenticated
+      if (!authState.token || authState.expiresAt < Date.now()) {
+        sendResponse({
+          success: false,
+          error: "Παρακαλώ συνδεθείτε πρώτα από το εικονίδιο της επέκτασης",
+          needsAuth: true
+        });
+        return;
+      }
+
+      // Since EventSource doesn't support headers, we'll use fetch with streaming
+      const flaskServerUrl = `https://news-copilot.vercel.app/augment-stream?url=${encodeURIComponent(message.url)}`;
+      
+      console.log("Background: Making API call to:", flaskServerUrl);
+      console.log("Background: Auth token present:", !!authState.token);
+      
+      fetch(flaskServerUrl, {
+        headers: {
+          'Authorization': `Bearer ${authState.token.replace(/[^\x00-\x7F]/g, "")}`
         }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      function processStream() {
-        reader.read().then(({ done, value }) => {
-          if (done) {
-            console.log("Stream complete");
-            return;
+      })
+      .then(response => {
+        console.log("Background: Response status:", response.status);
+        console.log("Background: Response headers:", response.headers);
+        
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('AUTH_REQUIRED');
+          } else if (response.status === 429) {
+            throw new Error('RATE_LIMIT');
           }
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
 
-          buffer += decoder.decode(value, { stream: true });
-          const messages = buffer.split('\n\n');
-          buffer = messages.pop() || '';
+        function processStream() {
+          reader.read().then(({ done, value }) => {
+            if (done) {
+              console.log("Stream complete");
+              return;
+            }
 
-          for (const message of messages) {
-            if (!message.trim()) continue;
-            
-            const lines = message.split('\n');
-            let eventType = null;
-            let eventData = null;
-            
-            for (const line of lines) {
-              if (line.startsWith('event:')) {
-                eventType = line.substring(6).trim();
-              } else if (line.startsWith('data:')) {
-                try {
-                  eventData = JSON.parse(line.substring(5).trim());
-                } catch (e) {
-                  console.error("Failed to parse SSE data:", line);
+            buffer += decoder.decode(value, { stream: true });
+            const messages = buffer.split('\n\n');
+            buffer = messages.pop() || '';
+
+            for (const message of messages) {
+              if (!message.trim()) continue;
+              
+              const lines = message.split('\n');
+              let eventType = null;
+              let eventData = null;
+              
+              for (const line of lines) {
+                if (line.startsWith('event:')) {
+                  eventType = line.substring(6).trim();
+                } else if (line.startsWith('data:')) {
+                  try {
+                    eventData = JSON.parse(line.substring(5).trim());
+                  } catch (e) {
+                    console.error("Failed to parse SSE data:", line);
+                  }
+                }
+              }
+              
+              if (eventType && eventData) {
+                console.log(`Background: Processing event '${eventType}'`);
+                
+                if (eventType === 'progress' && sender.tab && sender.tab.id) {
+                  chrome.tabs.sendMessage(sender.tab.id, { 
+                    type: "PROGRESS_UPDATE", 
+                    status: eventData.status 
+                  }).catch(() => {}); // Ignore if tab is closed
+                } else if (eventType === 'final_result') {
+                  console.log("Background: Received final result:", eventData);
+                  // Spread eventData properties directly into response for backward compatibility
+                  sendResponse({ success: true, ...eventData });
+                  reader.cancel(); // Stop reading after final result
+                  return;
+                } else if (eventType === 'error') {
+                  console.error("Background: Received error event:", eventData);
+                  sendResponse({ success: false, error: eventData.message || "API error" });
+                  reader.cancel();
+                  return;
                 }
               }
             }
-            
-            if (eventType && eventData) {
-              console.log(`Background: Processing event '${eventType}'`);
-              
-              if (eventType === 'progress' && sender.tab && sender.tab.id) {
-                chrome.tabs.sendMessage(sender.tab.id, { 
-                  type: "PROGRESS_UPDATE", 
-                  status: eventData.status 
-                }).catch(() => {}); // Ignore if tab is closed
-              } else if (eventType === 'final_result') {
-                console.log("Background: Received final result:", eventData);
-                // Spread eventData properties directly into response for backward compatibility
-                sendResponse({ success: true, ...eventData });
-                reader.cancel(); // Stop reading after final result
-                return;
-              } else if (eventType === 'error') {
-                console.error("Background: Received error event:", eventData);
-                sendResponse({ success: false, error: eventData.message || "API error" });
-                reader.cancel();
-                return;
-              }
+
+            processStream();
+          }).catch(error => {
+            console.error("Stream reading error:", error);
+            if (error.name === 'AbortError') {
+              sendResponse({ success: false, error: "Η ανάλυση διακόπηκε" });
+            } else {
+              sendResponse({ success: false, error: `Σφάλμα ανάγνωσης: ${error.message}` });
             }
-          }
+          });
+        }
 
-          processStream();
-        }).catch(error => {
-          console.error("Stream reading error:", error);
-          if (error.name === 'AbortError') {
-            sendResponse({ success: false, error: "Η ανάλυση διακόπηκε" });
-          } else {
-            sendResponse({ success: false, error: `Σφάλμα ανάγνωσης: ${error.message}` });
-          }
-        });
-      }
-
-      processStream();
-    })
-    .catch(error => {
-      console.error("Fetch error:", error);
-      console.error("Error type:", error.name);
-      console.error("Error message:", error.message);
-      
-      if (error.message === 'AUTH_REQUIRED') {
-        clearAuthState(); // Clear invalid auth
-        sendResponse({
-          success: false,
-          error: "Παρακαλώ συνδεθείτε ξανά",
-          needsAuth: true
-        });
-      } else if (error.message === 'RATE_LIMIT') {
-        sendResponse({
-          success: false,
-          error: "Έχετε φτάσει το μηνιαίο όριο. Αναβαθμίστε το πλάνο σας.",
-          rateLimit: true
-        });
-      } else {
-        sendResponse({ success: false, error: error.message });
-      }
-    });
-
-    return true; // Will respond asynchronously
+        processStream();
+      })
+      .catch(error => {
+        console.error("Fetch error:", error);
+        console.error("Error type:", error.name);
+        console.error("Error message:", error.message);
+        
+        if (error.message === 'AUTH_REQUIRED') {
+          clearAuthState(); // Clear invalid auth
+          sendResponse({
+            success: false,
+            error: "Παρακαλώ συνδεθείτε ξανά",
+            needsAuth: true
+          });
+        } else if (error.message === 'RATE_LIMIT') {
+          sendResponse({
+            success: false,
+            error: "Έχετε φτάσει το μηνιαίο όριο. Αναβαθμίστε το πλάνο σας.",
+            rateLimit: true
+          });
+        } else {
+          sendResponse({ success: false, error: error.message });
+        }
+      });
+    })();
   }
   
   // Deep analysis
   if (message.type === "DEEP_ANALYSIS") {
-    console.log("Background: Received DEEP_ANALYSIS message:", message);
-    
-    if (!authState.token || authState.expiresAt < Date.now()) {
-      sendResponse({
-        success: false,
-        error: "Παρακαλώ συνδεθείτε πρώτα",
-        needsAuth: true
-      });
-      return true;
-    }
-    
-    // Call the Python Flask server for deep analysis
-    const flaskDeepAnalysisUrl = 'https://news-copilot.vercel.app/deep-analysis';
-    
-    const requestData = {
-      url: message.url,
-      analysis_type: message.analysisType,
-      search_params: message.searchParams || {}
-    };
-    
-    fetch(flaskDeepAnalysisUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authState.token.replace(/[^\x00-\x7F]/g, "")}`
-      },
-      body: JSON.stringify(requestData)
-    })
-    .then(response => {
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('AUTH_REQUIRED');
-        } else if (response.status === 429) {
-          throw new Error('RATE_LIMIT');
-        }
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      console.log("Background: Deep analysis response received:", data);
-      sendResponse({ success: true, data: data.result, citations: data.citations });
-    })
-    .catch(error => {
-      console.error("Background: Deep analysis error:", error);
-      if (error.message === 'AUTH_REQUIRED') {
-        clearAuthState(); // Clear invalid auth
+    (async () => {
+      console.log("Background: Received DEEP_ANALYSIS message:", message);
+      await checkAndLoadAuthState(); // Ensure authState is fresh
+      
+      if (!authState.token || authState.expiresAt < Date.now()) {
         sendResponse({
           success: false,
-          error: "Παρακαλώ συνδεθείτε ξανά",
+          error: "Παρακαλώ συνδεθείτε πρώτα",
           needsAuth: true
         });
-      } else if (error.message === 'RATE_LIMIT') {
-        sendResponse({
-          success: false,
-          error: "Έχετε φτάσει το μηνιαίο όριο εξειδικευμένων αναλύσεων",
-          rateLimit: true
-        });
-      } else {
-        sendResponse({ success: false, error: error.message });
+        return;
       }
-    });
-    
-    return true; // Will respond asynchronously
+      
+      // Call the Python Flask server for deep analysis
+      const flaskDeepAnalysisUrl = 'https://news-copilot.vercel.app/deep-analysis';
+      
+      const requestData = {
+        url: message.url,
+        analysis_type: message.analysisType,
+        search_params: message.searchParams || {}
+      };
+      
+      fetch(flaskDeepAnalysisUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authState.token.replace(/[^\x00-\x7F]/g, "")}`
+        },
+        body: JSON.stringify(requestData)
+      })
+      .then(response => {
+        if (!response.ok) {
+          if (response.status === 401) {
+            throw new Error('AUTH_REQUIRED');
+          } else if (response.status === 429) {
+            throw new Error('RATE_LIMIT');
+          }
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log("Background: Deep analysis response received:", data);
+        sendResponse({ success: true, data: data.result, citations: data.citations });
+      })
+      .catch(error => {
+        console.error("Background: Deep analysis error:", error);
+        if (error.message === 'AUTH_REQUIRED') {
+          clearAuthState(); // Clear invalid auth
+          sendResponse({
+            success: false,
+            error: "Παρακαλώ συνδεθείτε ξανά",
+            needsAuth: true
+          });
+        } else if (error.message === 'RATE_LIMIT') {
+          sendResponse({
+            success: false,
+            error: "Έχετε φτάσει το μηνιαίο όριο εξειδικευμένων αναλύσεων",
+            rateLimit: true
+          });
+        } else {
+          sendResponse({ success: false, error: error.message });
+        }
+      });
+    })();
   }
+
+  return true; // Keep one at the end of onMessage if any handlers are async
 });
 
 // Listen for auth callback URLs

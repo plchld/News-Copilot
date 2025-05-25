@@ -25,10 +25,14 @@ from .prompt_utils import (
     get_bias_analysis_task_instruction,
     get_timeline_task_instruction,
     get_expert_opinions_task_instruction,
+    get_article_topic_extraction_instruction,
+    get_x_pulse_analysis_task_instruction,
     get_fact_check_schema,
     get_bias_analysis_schema,
     get_timeline_schema,
-    get_expert_opinions_schema
+    get_expert_opinions_schema,
+    get_article_topic_extraction_schema,
+    get_x_pulse_analysis_schema
 )
 
 
@@ -158,29 +162,94 @@ class AnalysisHandler:
             'fact-check': (get_fact_check_task_instruction, get_fact_check_schema),
             'bias': (get_bias_analysis_task_instruction, get_bias_analysis_schema),
             'timeline': (get_timeline_task_instruction, get_timeline_schema),
-            'expert': (get_expert_opinions_task_instruction, get_expert_opinions_schema)
+            'expert': (get_expert_opinions_task_instruction, get_expert_opinions_schema),
+            'x-pulse': (None, get_x_pulse_analysis_schema)  # Special handling below
         }
         
         if analysis_type not in instruction_map:
             raise ValueError(f"Unknown analysis type: {analysis_type}")
         
-        # Get instruction generator and schema
-        instruction_fn, schema_fn = instruction_map[analysis_type]
+        # Handle X Pulse specially - it needs topic extraction first
+        if analysis_type == 'x-pulse':
+            # First, extract topics and keywords
+            topic_instruction = get_article_topic_extraction_instruction(article_text)
+            topic_schema = get_article_topic_extraction_schema()
+            topic_prompt = build_prompt(topic_instruction, topic_schema)
+            
+            # Use thinking model for topic extraction
+            topic_completion = self.grok_client.create_thinking_completion(
+                prompt=topic_prompt,
+                reasoning_effort="low",
+                temperature=0.3,
+                response_format={"type": "json_object"}
+            )
+            
+            topic_data = json.loads(topic_completion.choices[0].message.content)
+            main_topic = topic_data.get('main_topic', '')
+            keywords = topic_data.get('x_search_keywords', [])
+            
+            print(f"[get_deep_analysis] X-Pulse topic extraction: topic='{main_topic}', keywords={keywords}", flush=True)
+            
+            # Now create the X Pulse instruction with extracted data
+            task_instruction = get_x_pulse_analysis_task_instruction(article_text, main_topic, keywords)
+            schema = get_x_pulse_analysis_schema()
+            prompt_content = build_prompt(task_instruction, schema)
+        else:
+            # Regular analysis types
+            instruction_fn, schema_fn = instruction_map[analysis_type]
+            
+            # Generate task instruction
+            task_instruction = instruction_fn(article_text)
+            
+            # Build complete prompt with hardened template
+            schema = schema_fn()
+            prompt_content = build_prompt(task_instruction, schema)
         
-        # Generate task instruction
-        task_instruction = instruction_fn(article_text)
+        # Import search params builder and preset functions
+        from .search_params_builder import (
+            build_search_params, 
+            get_search_params_for_x_pulse,
+            get_search_params_for_fact_check,
+            get_search_params_for_bias_analysis,
+            get_search_params_for_timeline,
+            get_search_params_for_expert_opinions
+        )
+        from urllib.parse import urlparse
         
-        # Build complete prompt with hardened template
-        schema = schema_fn()
-        prompt_content = build_prompt(task_instruction, schema)
-        
-        # Import search params builder
-        from .search_params_builder import build_search_params
+        # Extract domain from article URL to exclude it from search results
+        parsed_url = urlparse(article_url)
+        article_domain = parsed_url.netloc.replace('www.', '')  # Remove www prefix if present
+        print(f"[get_deep_analysis] Excluding current article domain from search: {article_domain}", flush=True)
         
         # Build search parameters using the builder
         # If searchParams provided by client, use them, otherwise use defaults
-        if search_params:
+        if analysis_type == 'x-pulse':
+            # Use specialized X Pulse search params
+            search_params_dict = get_search_params_for_x_pulse(
+                mode="on",
+                keywords=keywords if 'keywords' in locals() else None,
+                article_domain=article_domain
+            )
+        elif search_params:
             # Extract relevant fields from client searchParams
+            # Merge excluded websites with article domain
+            excluded_map = search_params.get("excluded_websites_map", {})
+            if not excluded_map:
+                excluded_map = {"web": [], "news": []}
+            else:
+                # Make a copy to avoid modifying the original
+                excluded_map = dict(excluded_map)
+                if "web" not in excluded_map:
+                    excluded_map["web"] = []
+                if "news" not in excluded_map:
+                    excluded_map["news"] = []
+            
+            # Add article domain to both web and news exclusions
+            if article_domain not in excluded_map["web"]:
+                excluded_map["web"].append(article_domain)
+            if article_domain not in excluded_map["news"]:
+                excluded_map["news"].append(article_domain)
+            
             search_params_dict = build_search_params(
                 mode=search_params.get("mode", "on"),
                 sources=search_params.get("sources"),
@@ -191,13 +260,34 @@ class AnalysisHandler:
                 to_date=search_params.get("to_date"),
                 max_results=search_params.get("max_results", 20),
                 safe_search=search_params.get("safe_search", True),
-                excluded_websites_map=search_params.get("excluded_websites_map"),
+                excluded_websites_map=excluded_map,
                 x_handles_for_x_source=search_params.get("x_handles_for_x_source"),
                 rss_links_for_rss_source=search_params.get("rss_links_for_rss_source")
             )
         else:
-            # Use default search params
-            search_params_dict = self.grok_client.get_default_search_params()
+            # Use preset search params based on analysis type
+            preset_map = {
+                'fact-check': get_search_params_for_fact_check,
+                'bias': get_search_params_for_bias_analysis,
+                'timeline': get_search_params_for_timeline,
+                'expert': get_search_params_for_expert_opinions
+            }
+            
+            if analysis_type in preset_map:
+                # Use the appropriate preset function with article domain exclusion
+                search_params_dict = preset_map[analysis_type](mode="on", article_domain=article_domain)
+            else:
+                # Fallback to default search params with article domain excluded
+                search_params_dict = self.grok_client.get_default_search_params()
+                
+                # Add excluded websites for the current article domain
+                if 'sources' in search_params_dict:
+                    for source in search_params_dict['sources']:
+                        if source.get('type') in ['web', 'news']:
+                            if 'excluded_websites' not in source:
+                                source['excluded_websites'] = []
+                            if article_domain not in source['excluded_websites']:
+                                source['excluded_websites'].append(article_domain)
         
         # Make API call with the schema already included in prompt
         completion = self.grok_client.create_completion(
@@ -274,19 +364,46 @@ class AnalysisHandler:
             'bias': {
                 "type": "object",
                 "properties": {
-                    "political_lean": {"type": "string"},
-                    "confidence": {"type": "string"},
-                    "emotional_tone": {"type": "string"},
-                    "language_analysis": {
+                    "political_spectrum_analysis_greek": {
                         "type": "object",
                         "properties": {
-                            "loaded_words": {"type": "array", "items": {"type": "string"}},
-                            "framing": {"type": "string"},
-                            "missing_perspectives": {"type": "string"}
+                            "economic_axis_placement": {"type": "string"},
+                            "economic_axis_justification": {"type": "string"},
+                            "social_axis_placement": {"type": "string"},
+                            "social_axis_justification": {"type": "string"},
+                            "overall_confidence": {"type": "string"}
                         }
                     },
-                    "comparison": {"type": "string"},
-                    "recommendations": {"type": "string"}
+                    "language_and_framing_analysis": {
+                        "type": "object",
+                        "properties": {
+                            "emotionally_charged_terms": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "term": {"type": "string"},
+                                        "explanation": {"type": "string"}
+                                    }
+                                }
+                            },
+                            "identified_framing_techniques": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "technique_name": {"type": "string"},
+                                        "example_from_article": {"type": "string"}
+                                    }
+                                }
+                            },
+                            "detected_tone": {"type": "string"},
+                            "missing_perspectives_summary": {"type": "string"}
+                        }
+                    },
+                    "sources_diversity": {"type": "string"},
+                    "analysis_summary": {"type": "string"},
+                    "supporting_evidence": {"type": "array", "items": {"type": "string"}}
                 }
             },
             'timeline': {
@@ -331,6 +448,34 @@ class AnalysisHandler:
                     },
                     "consensus": {"type": "string"},
                     "key_debates": {"type": "string"}
+                }
+            },
+            'x-pulse': {
+                "type": "object",
+                "properties": {
+                    "overall_discourse_summary": {"type": "string"},
+                    "discussion_themes": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "theme_title": {"type": "string"},
+                                "theme_summary": {"type": "string"},
+                                "representative_posts": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "object",
+                                        "properties": {
+                                            "post_content": {"type": "string"},
+                                            "post_source_description": {"type": "string"}
+                                        }
+                                    }
+                                },
+                                "sentiment_around_theme": {"type": "string"}
+                            }
+                        }
+                    },
+                    "data_caveats": {"type": "string"}
                 }
             }
         }

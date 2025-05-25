@@ -5,7 +5,7 @@ Implements scratchpad technique and strict citation requirements.
 """
 
 import json
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 
 # System-level instructions for all prompts
 SYSTEM_PREFIX = """
@@ -135,33 +135,92 @@ def get_bias_analysis_schema() -> dict:
     return {
         "type": "object",
         "properties": {
-            "political_lean": {
-                "type": "string",
-                "enum": ["αριστερά", "κεντροαριστερά", "κέντρο", "κεντροδεξιά", "δεξιά", "ουδέτερο", "άγνωστο"]
+            "political_spectrum_analysis_greek": {
+                "type": "object",
+                "properties": {
+                    "economic_axis_placement": {
+                        "type": "string",
+                        "description": "Τοποθέτηση στον οικονομικό άξονα",
+                        "enum": ["Αριστερά", "Κεντροαριστερά", "Κέντρο", "Κεντροδεξιά", "Δεξιά", "Ουδέτερο", "Άγνωστο/Δεν είναι σαφές"]
+                    },
+                    "economic_axis_justification": {
+                        "type": "string",
+                        "description": "Αιτιολόγηση για την τοποθέτηση στον οικονομικό άξονα, με παραδείγματα από το άρθρο"
+                    },
+                    "social_axis_placement": {
+                        "type": "string",
+                        "description": "Τοποθέτηση στον κοινωνικό άξονα",
+                        "enum": ["Προοδευτική", "Φιλελεύθερη", "Μετριοπαθής", "Συντηρητική", "Άγνωστο/Δεν είναι σαφές"]
+                    },
+                    "social_axis_justification": {
+                        "type": "string",
+                        "description": "Αιτιολόγηση για την τοποθέτηση στον κοινωνικό άξονα, με παραδείγματα από το άρθρο"
+                    },
+                    "overall_confidence": {
+                        "type": "string",
+                        "description": "Συνολική βεβαιότητα για την ανάλυση του πολιτικού φάσματος",
+                        "enum": ["Υψηλή", "Μέτρια", "Χαμηλή"]
+                    }
+                },
+                "required": ["economic_axis_placement", "economic_axis_justification", 
+                            "social_axis_placement", "social_axis_justification", "overall_confidence"]
             },
-            "tone": {
-                "type": "string",
-                "enum": ["θετικό", "αρνητικό", "ουδέτερο", "μικτό"]
-            },
-            "framing_techniques": {
-                "type": "array",
-                "items": {"type": "string"}
-            },
-            "emotional_language": {
-                "type": "array",
-                "items": {"type": "string"}
+            "language_and_framing_analysis": {
+                "type": "object",
+                "properties": {
+                    "emotionally_charged_terms": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "term": {"type": "string", "description": "Η φορτισμένη λέξη ή φράση"},
+                                "explanation": {"type": "string", "description": "Εξήγηση γιατί η λέξη/φράση είναι φορτισμένη στο συγκεκριμένο πλαίσιο"}
+                            },
+                            "required": ["term", "explanation"]
+                        },
+                        "description": "Λέξεις ή φράσεις με έντονο συναισθηματικό φορτίο"
+                    },
+                    "identified_framing_techniques": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "technique_name": {"type": "string", "description": "Όνομα της τεχνικής πλαισίωσης"},
+                                "example_from_article": {"type": "string", "description": "Συγκεκριμένο παράδειγμα από το άρθρο"}
+                            },
+                            "required": ["technique_name", "example_from_article"]
+                        },
+                        "description": "Τεχνικές πλαισίωσης που εντοπίστηκαν"
+                    },
+                    "detected_tone": {
+                        "type": "string",
+                        "enum": ["θετικός", "αρνητικός", "ουδέτερος", "μικτός", "άγνωστος"],
+                        "description": "Ο γενικός συναισθηματικός τόνος του άρθρου"
+                    },
+                    "missing_perspectives_summary": {
+                        "type": "string",
+                        "description": "Σύνοψη των οπτικών γωνιών που ενδέχεται να λείπουν από το άρθρο"
+                    }
+                },
+                "required": ["emotionally_charged_terms", "identified_framing_techniques", 
+                            "detected_tone", "missing_perspectives_summary"]
             },
             "sources_diversity": {
                 "type": "string",
-                "enum": ["υψηλή", "μέτρια", "χαμηλή", "μονομερής"]
+                "enum": ["υψηλή", "μέτρια", "χαμηλή", "μονομερής"],
+                "description": "Ποικιλία πηγών που χρησιμοποιήθηκαν στο άρθρο"
             },
-            "analysis_summary": {"type": "string"},
+            "analysis_summary": {
+                "type": "string",
+                "description": "Συνοπτική ανάλυση της μεροληψίας και των τεχνικών του άρθρου"
+            },
             "supporting_evidence": {
                 "type": "array",
-                "items": {"type": "string", "format": "url"}
+                "items": {"type": "string", "format": "url"},
+                "description": "URLs που υποστηρίζουν την ανάλυση"
             }
         },
-        "required": ["political_lean", "tone", "framing_techniques", "emotional_language", 
+        "required": ["political_spectrum_analysis_greek", "language_and_framing_analysis",
                      "sources_diversity", "analysis_summary", "supporting_evidence"]
     }
 
@@ -218,6 +277,74 @@ def get_expert_opinions_schema() -> dict:
             }
         },
         "required": ["opinions"]
+    }
+
+
+def get_article_topic_extraction_schema() -> dict:
+    """
+    Get JSON schema for article topic extraction response.
+    """
+    return {
+        "type": "object",
+        "properties": {
+            "main_topic": {"type": "string", "description": "Κύριο θέμα του άρθρου"},
+            "key_entities": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Σημαντικές οντότητες (πρόσωπα, οργανισμοί, τοποθεσίες)"
+            },
+            "x_search_keywords": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "Λέξεις-κλειδιά για αναζήτηση στο X"
+            }
+        },
+        "required": ["main_topic", "key_entities", "x_search_keywords"]
+    }
+
+
+def get_x_pulse_analysis_schema() -> dict:
+    """
+    Get JSON schema for X Pulse analysis response.
+    """
+    return {
+        "type": "object",
+        "properties": {
+            "overall_discourse_summary": {
+                "type": "string",
+                "description": "Συνολική περίληψη της συζήτησης στο X σχετικά με το θέμα του άρθρου"
+            },
+            "discussion_themes": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "theme_title": {"type": "string", "description": "Τίτλος θέματος/άποψης"},
+                        "theme_summary": {"type": "string", "description": "Περίληψη 1-2 προτάσεων του θέματος/άποψης"},
+                        "representative_posts": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "post_content": {"type": "string", "description": "Αντιπροσωπευτικό απόσπασμα ή περίληψη ανάρτησης από το X"},
+                                    "post_source_description": {"type": "string", "description": "Περιγραφή πηγής"}
+                                },
+                                "required": ["post_content", "post_source_description"]
+                            },
+                            "description": "Αντιπροσωπευτικές αναρτήσεις ή περιλήψεις"
+                        },
+                        "sentiment_around_theme": {"type": "string", "description": "Γενικό συναίσθημα/τόνος"}
+                    },
+                    "required": ["theme_title", "theme_summary", "representative_posts", "sentiment_around_theme"]
+                }
+            },
+            "data_caveats": {
+                "type": "string",
+                "description": "Προειδοποίηση σχετικά με τη φύση των δεδομένων από το X",
+                "default": "Η ανάλυση αυτή αντικατοπτρίζει ένα στιγμιότυπο των συζητήσεων στο X και ενδέχεται να μην είναι αντιπροσωπευτική της ευρύτερης κοινής γνώμης ή επαληθευμένων γεγονότων. Οι απόψεις που εκφράζονται ανήκουν στους χρήστες του X."
+            }
+        },
+        "required": ["overall_discourse_summary", "discussion_themes", "data_caveats"]
     }
 
 
@@ -280,13 +407,23 @@ def inject_runtime_search_context(prompt: str, search_params: dict) -> str:
     if not contextual_params:
         return prompt
 
+    # Check for exclusions (transparency notice)
+    exclusion_notice = ""
+    if "sources" in contextual_params:
+        for source in contextual_params["sources"]:
+            if isinstance(source, dict) and "excluded_websites" in source and source["excluded_websites"]:
+                exclusion_notice = """
+TRANSPARENCY NOTICE: Some websites have been excluded from search results.
+This may affect the diversity of perspectives. Users can disable exclusions if desired."""
+                break
+
     pretty_params = json.dumps(contextual_params, ensure_ascii=False, indent=2)
     context_section = f"""
 ### Active Search Parameters (Live Search) Context ###
 ```json
 {pretty_params}
 ```
-Use these parameters to guide your search strategy."""
+Use these parameters to guide your search strategy.{exclusion_notice}"""
     
     return f"{prompt}{context_section}"
 
@@ -307,7 +444,13 @@ Article to analyze:
 def get_alt_view_task_instruction(article_text: str) -> str:
     """Generate task instruction for alternative viewpoints."""
     return f"""Find 4 to 8 reliable sources (preferably Greek) that cover the same news story as the original article.
-IMPORTANT: Search primarily in Greek language and prioritize Greek news sources.
+IMPORTANT: 
+1. Search primarily in Greek language and prioritize Greek news sources.
+2. DO NOT cite the same article or website that we are analyzing - look for OTHER sources.
+3. Use broad search terms about the TOPIC, not exact phrases from the article.
+4. Search for the main entities, events, or issues, not the specific framing.
+5. Examples: If the article is about "Government announces tax increase", search for "tax policy Greece" or "tax changes" not the exact title.
+
 For each source, briefly describe (in 1-3 sentences) how its coverage differs from or adds to the original story.
 Mention new facts, different perspectives, missing details, or conflicting statements.
 Required fields for each source are: "source_title", "provider", "published_date", "difference_summary", and "url".
@@ -340,13 +483,33 @@ Article to check:
 def get_bias_analysis_task_instruction(article_text: str) -> str:
     """Generate task instruction for bias analysis."""
     return f"""Analyze the article below for political bias and framing techniques.
-Identify:
-- Political lean (left, center, right, etc.)
-- Emotional tone (positive, negative, neutral)
-- Framing techniques used
-- Emotionally charged language
-- Source diversity
-Provide specific examples and URLs that support your analysis.
+
+Greek Political Spectrum Analysis:
+Analyze the article based on the following two-dimensional Greek political spectrum:
+
+1. Economic Axis:
+   - Αριστερά (Κρατικός παρεμβατισμός, κοινωνικοποίηση μέσων παραγωγής, αναδιανομή πλούτου)
+   - Κεντροαριστερά (Μικτή οικονομία με ισχυρό κοινωνικό κράτος, ρύθμιση αγορών)
+   - Κέντρο (Ισορροπία μεταξύ ελεύθερης αγοράς και κοινωνικής προστασίας, δημοσιονομική υπευθυνότητα)
+   - Κεντροδεξιά (Ελεύθερη αγορά με στοχευμένες παρεμβάσεις, μείωση φορολογίας, προσέλκυση επενδύσεων)
+   - Δεξιά (Ελαχιστοποίηση κρατικής παρέμβασης, ιδιωτικοποιήσεις, πλήρης απελευθέρωση αγορών)
+
+2. Social Axis:
+   - Προοδευτική (Δικαιώματα ΛΟΑΤΚΙ+, διαχωρισμός κράτους-εκκλησίας, πολυπολιτισμικότητα, ατομικές ελευθερίες)
+   - Φιλελεύθερη (Έμφαση στα ατομικά δικαιώματα, ανεκτικότητα, μεταρρυθμίσεις)
+   - Μετριοπαθής (Ισορροπία μεταξύ παράδοσης και αλλαγής)
+   - Συντηρητική (Έμφαση στην παράδοση, εθνική ταυτότητα, οικογενειακές αξίες, επιφυλακτικότητα σε ραγδαίες αλλαγές)
+
+For the article provided, determine its position on BOTH the Economic and Social axes.
+Provide a detailed justification for each placement, citing specific examples from the article's text, arguments, or sources.
+If the article does not provide enough information for a clear placement on an axis, indicate "Άγνωστο/Δεν είναι σαφές".
+
+Also analyze:
+- Emotionally charged language (with explanations of why they are charged)
+- Framing techniques (with specific examples)
+- Overall tone and sentiment
+- Missing perspectives or viewpoints
+
 IMPORTANT: Search primarily in Greek language.
 Remember: ALL text values in JSON must be in Greek.
 
@@ -400,6 +563,49 @@ IMPORTANT:
 
 Reference article:
 {article_text}"""
+
+
+def get_article_topic_extraction_instruction(article_text: str) -> str:
+    """Generate task instruction for extracting article topics and keywords for X search."""
+    return f"""Analyze the provided Greek news article text.
+Identify and extract the following:
+1. Main Topic: A concise phrase describing the core subject of the article.
+2. Key Entities: A list of important people, organizations, locations, or specific terms mentioned.
+3. Search Keywords: A list of 3-5 keywords or short phrases suitable for searching for related discussions on X (Twitter). Prioritize terms that are likely to yield relevant public discourse in Greek.
+
+IMPORTANT: ALL output must be in Greek language.
+
+Article Text:
+{article_text}"""
+
+
+def get_x_pulse_analysis_task_instruction(article_text: str, article_main_topic: str, article_x_keywords: List[str]) -> str:
+    """Generate task instruction for X Pulse analysis."""
+    keyword_str = ", ".join(article_x_keywords)
+    return f"""You are News-Copilot. Your task is to provide an "X Pulse" analysis for the following news article.
+The main topic of the article is: '{article_main_topic}'.
+Focus your X (Twitter) search and analysis on discussions related to these keywords: {keyword_str}.
+The primary language for X posts should be Greek.
+
+IMPORTANT: Search organically based on the topic and keywords. Do NOT limit your search to pre-selected accounts.
+Find diverse voices and perspectives - from citizens, experts, officials, journalists, or anyone discussing this topic.
+
+Instructions:
+1. Based on your Live Search of X (Twitter) using the topic and keywords, identify relevant public discussions in Greek.
+2. From these discussions, identify 3-5 dominant themes or distinct viewpoints from diverse sources.
+3. For each theme/viewpoint:
+   a. Provide a concise title (2-5 words).
+   b. Write a 1-2 sentence summary explaining the theme/viewpoint.
+   c. Extract or summarize 1-2 representative X posts (tweets) that clearly illustrate this theme/viewpoint. Attribute them generally (e.g., "ένας χρήστης του X δήλωσε...") unless the source is a verified public figure or organization explicitly making a statement. Focus on the content of the discourse.
+   d. Briefly describe the general sentiment or tone surrounding this theme on X (e.g., "Έντονη ανησυχία", "Ισχυρή υποστήριξη", "Μικτές αντιδράσεις", "Ενημερωτική συζήτηση").
+4. Provide an overall summary of the X discourse related to the article's topic.
+
+If the topic has international relevance (EU, NATO, climate, etc.), also include relevant English-language discussions.
+
+Original Article for Context (do not summarize the article itself in the output, use it for context only):
+{article_text}
+
+Return ALL output in Greek."""
 
 
 # Self-critique template

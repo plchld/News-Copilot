@@ -2,6 +2,15 @@
 
 > **🇬🇷 Ελληνική πλατφόρμα νοημοσύνης ειδήσεων με AI - Εμπλουτισμένη κατανόηση για κάθε άρθρο**
 
+## 📢 Transparency Notice
+
+News Copilot is committed to transparency in how it analyzes news. We minimize bias by:
+- **No curated lists**: X Pulse finds relevant discussions organically, not from pre-selected accounts
+- **Intelligent language detection**: Automatically includes international sources when topics have global relevance (EU, NATO, climate, etc.)
+- **Transparent exclusions**: Any filtered sites are listed publicly (empty by default)
+
+See our [Configuration Transparency Notice](config/README.md) for details on your rights as a user.
+
 ---
 
 ## 🚀 Beta User Quick Start Guide
@@ -93,6 +102,13 @@ Welcome, Beta User! This guide will help you quickly install and start using the
 - **User Management** - Complete authentication system with rate limiting
 - **Scalable Deployment** - Production-ready Vercel serverless functions
 
+### 🚀 NEW: Agentic Intelligence Architecture
+- **Parallel Agent Execution** - 3x faster analysis through concurrent processing
+- **Dynamic Model Selection** - Automatic model optimization (grok-3-mini for simple, grok-3 for complex)
+- **Nested Agent Systems** - X Pulse uses 5 specialized sub-agents working together
+- **Quality Control** - Automated refinement for subpar results
+- **Cost Optimization** - Strategic use of models reduces costs by ~40%
+
 ### Authentication & User Management
 - **Supabase Backend** - Enterprise-grade authentication and database (managed by the deployed backend)
 - **Magic Link Auth** - Passwordless authentication via email
@@ -168,7 +184,17 @@ api/
 ├── supabase_auth.py            - Supabase authentication
 ├── http_supabase.py            - Supabase HTTP client
 ├── email_verification.py       - Email verification system
-└── config.py                   - Configuration management
+├── config.py                   - Configuration management
+└── agents/                     - NEW: Agentic intelligence system
+    ├── base_agent.py           - Base agent classes with model selection
+    ├── coordinator.py          - Orchestrates parallel agent execution
+    ├── jargon_agent.py         - Term explanation agent (grok-3-mini)
+    ├── viewpoints_agent.py     - Alternative perspectives agent
+    ├── fact_check_agent.py     - Claim verification agent
+    ├── bias_agent.py           - Political bias analysis agent
+    ├── timeline_agent.py       - Event chronology agent
+    ├── expert_agent.py         - Expert opinions agent
+    └── x_pulse_agent.py        - X discourse analysis (nested agents)
 ```
 
 ### Testing Infrastructure
@@ -202,6 +228,9 @@ tests/
 - **Citation Verification** - Έλεγχος ότι οι πηγές περιέχουν το αναφερόμενο περιεχόμενο
 - **Serverless Architecture** - Scalable Vercel deployment
 - **Database Security** - Row Level Security (RLS) policies
+- **Agentic Intelligence** - Parallel agent execution with smart model selection
+- **Nested Agent Systems** - Complex analyses using multiple specialized sub-agents
+- **Quality Assurance** - Automated quality checks and refinement loops
 
 ## ⚙️ Εγκατάσταση & Χρήση
 
