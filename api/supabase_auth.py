@@ -45,8 +45,8 @@ TIER_LIMITS = {
         'price': 24.99
     },
     UserTier.BYOK: {
-        'basic_analysis': float('inf'),
-        'deep_analysis': float('inf'),
+        'basic_analysis': 999999,
+        'deep_analysis': 999999,
         'price': 0
     }
 }

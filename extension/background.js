@@ -115,7 +115,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     
     fetch(flaskServerUrl, {
       headers: {
-        'Authorization': `Bearer ${authState.token}`
+        'Authorization': `Bearer ${authState.token.replace(/[^\x00-\x7F]/g, "")}`
       }
     })
     .then(response => {
@@ -253,7 +253,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authState.token}`
+        'Authorization': `Bearer ${authState.token.replace(/[^\x00-\x7F]/g, "")}`
       },
       body: JSON.stringify(requestData)
     })

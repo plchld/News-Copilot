@@ -124,7 +124,7 @@ async function updateUsageStats() {
     try {
         const response = await fetch(`${API_BASE}/api/auth/usage?email=${userInfo.email}`, {
             headers: {
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${authToken.replace(/[^\x00-\x7F]/g, "")}`
             }
         });
         
@@ -185,11 +185,11 @@ async function saveApiKey() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${authToken.replace(/[^\x00-\x7F]/g, "")}`
             },
             body: JSON.stringify({
                 email: userInfo.email,
-                api_key: apiKey
+                api_key: apiKey.replace(/[^\x00-\x7F]/g, "")
             })
         });
         

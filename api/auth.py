@@ -40,8 +40,8 @@ TIER_LIMITS = {
         'price': 19.99  # EUR
     },
     UserTier.BYOK: {
-        'basic_analysis': float('inf'),
-        'deep_analysis': float('inf'),
+        'basic_analysis': 999999,
+        'deep_analysis': 999999,
         'price': 0
     }
 }
@@ -91,7 +91,7 @@ def check_rate_limit(email: str, tier: str, analysis_type: str) -> Tuple[bool, i
     limit = TIER_LIMITS[tier].get(analysis_type, 0)
     
     # Check if within limit
-    allowed = used < limit if limit != float('inf') else True
+    allowed = used < limit if limit != 999999 else True
     
     return allowed, used, limit
 

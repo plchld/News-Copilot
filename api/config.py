@@ -32,5 +32,5 @@ COMMON_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.3
 RATE_LIMITS = {
     'free': 10,
     'premium': 50,
-    'admin': float('inf')
+    'admin': 999999
 }

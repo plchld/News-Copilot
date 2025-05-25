@@ -40,8 +40,8 @@ TIER_LIMITS = {
         'price': 19.99
     },
     UserTier.BYOK: {
-        'basic_analysis': float('inf'),
-        'deep_analysis': float('inf'),
+        'basic_analysis': 999999,
+        'deep_analysis': 999999,
         'price': 0
     }
 }
@@ -99,7 +99,7 @@ def require_auth(analysis_type: str = 'basic_analysis'):
             current_usage = get_monthly_usage(email, analysis_type)
             limit = TIER_LIMITS[tier].get(analysis_type, 0)
             
-            if limit != float('inf') and current_usage >= limit:
+            if limit != 999999 and current_usage >= limit:
                 return jsonify({
                     'error': 'Rate limit exceeded',
                     'used': current_usage,

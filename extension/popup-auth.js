@@ -154,17 +154,25 @@ class AuthManager {
             return;
         }
         
+        // Check for non-ASCII characters
+        if (apiKey !== apiKey.replace(/[^\x00-\x7F]/g, "")) {
+            this.showMessage('Το API Key περιέχει μη έγκυρους χαρακτήρες. Θα αφαιρεθούν αυτόματα.', 'warning');
+        }
+        
         this.setLoading(this.apiKeyButton, true);
         
         try {
             // Validate API key with backend
+            // Ensure the API key only contains ASCII characters
+            const cleanApiKey = apiKey.replace(/[^\x00-\x7F]/g, "");
+            
             const response = await fetch(`${BACKEND_URL}/api/auth/validate-api-key`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
+                    'Authorization': `Bearer ${cleanApiKey}`
                 },
-                body: JSON.stringify({ api_key: apiKey })
+                body: JSON.stringify({ api_key: cleanApiKey })
             });
 
             if (!response.ok) {
@@ -178,7 +186,7 @@ class AuthManager {
             const expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
             await chrome.runtime.sendMessage({
                 type: 'SET_AUTH_STATE',
-                token: apiKey,
+                token: cleanApiKey,
                 user: { email: 'API Key User', is_api_key: true },
                 expiresAt: expiresAt
             });
@@ -190,7 +198,7 @@ class AuthManager {
             
             // Load profile and show authenticated view
             this.currentUser = { email: 'API Key User', is_api_key: true };
-            await this.loadUserProfile(apiKey);
+            await this.loadUserProfile(cleanApiKey);
             this.showAuthenticatedView();
             
         } catch (error) {
@@ -203,9 +211,12 @@ class AuthManager {
 
     async loadUserProfile(token) {
         try {
+            // Ensure token only contains ASCII characters
+            const cleanToken = token.replace(/[^\x00-\x7F]/g, "");
+            
             const response = await fetch(`${BACKEND_URL}/api/auth/profile`, {
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${cleanToken}`
                 }
             });
 
@@ -269,8 +280,11 @@ class AuthManager {
                     const basicPercent = (this.currentProfile.basic_analysis_count / this.currentProfile.basic_analysis_limit) * 100;
                     const deepPercent = (this.currentProfile.deep_analysis_count / this.currentProfile.deep_analysis_limit) * 100;
                     
-                    this.basicUsage.textContent = `${this.currentProfile.basic_analysis_count} / ${this.currentProfile.basic_analysis_limit}`;
-                    this.deepUsage.textContent = `${this.currentProfile.deep_analysis_count} / ${this.currentProfile.deep_analysis_limit}`;
+                    const basicLimit = this.currentProfile.basic_analysis_limit >= 999999 ? '∞' : this.currentProfile.basic_analysis_limit;
+                    const deepLimit = this.currentProfile.deep_analysis_limit >= 999999 ? '∞' : this.currentProfile.deep_analysis_limit;
+                    
+                    this.basicUsage.textContent = `${this.currentProfile.basic_analysis_count} / ${basicLimit}`;
+                    this.deepUsage.textContent = `${this.currentProfile.deep_analysis_count} / ${deepLimit}`;
                     
                     this.basicUsageBar.style.width = `${Math.min(basicPercent, 100)}%`;
                     this.deepUsageBar.style.width = `${Math.min(deepPercent, 100)}%`;

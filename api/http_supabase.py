@@ -41,8 +41,8 @@ TIER_LIMITS = {
         'price': 24.99
     },
     UserTier.BYOK: {
-        'basic_analysis': float('inf'),
-        'deep_analysis': float('inf'),
+        'basic_analysis': 999999,
+        'deep_analysis': 999999,
         'price': 0
     }
 }
@@ -255,8 +255,8 @@ def get_profile():
             'tier': UserTier.BYOK,
             'email_verified': True,
             'is_api_key': True,
-            'basic_analysis_limit': float('inf'),
-            'deep_analysis_limit': float('inf'),
+            'basic_analysis_limit': 999999,
+            'deep_analysis_limit': 999999,
             'basic_analysis_count': 0,
             'deep_analysis_count': 0
         })
@@ -351,8 +351,8 @@ def validate_api_key():
             },
             'profile': {
                 'tier': UserTier.BYOK,
-                'basic_analysis_limit': float('inf'),
-                'deep_analysis_limit': float('inf'),
+                'basic_analysis_limit': 999999,
+                'deep_analysis_limit': 999999,
                 'basic_analysis_count': 0,
                 'deep_analysis_count': 0
             }

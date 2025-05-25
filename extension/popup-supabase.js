@@ -295,7 +295,7 @@ class NewscopilotAuth {
         try {
             const response = await fetch(`${BACKEND_URL}/api/auth/profile`, {
                 headers: {
-                    'Authorization': `Bearer ${this.currentSession.access_token}`,
+                    'Authorization': `Bearer ${this.currentSession.access_token.replace(/[^\x00-\x7F]/g, "")}`,
                     'Content-Type': 'application/json'
                 }
             });
@@ -327,10 +327,10 @@ class NewscopilotAuth {
             const response = await fetch(`${BACKEND_URL}/api/auth/update-api-key`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${this.currentSession.access_token}`,
+                    'Authorization': `Bearer ${this.currentSession.access_token.replace(/[^\x00-\x7F]/g, "")}`,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ api_key: apiKey })
+                body: JSON.stringify({ api_key: apiKey.replace(/[^\x00-\x7F]/g, "") })
             });
             
             if (!response.ok) {
