@@ -4,6 +4,67 @@
 
 ---
 
+## 🚀 Beta User Quick Start Guide
+
+Welcome, Beta User! This guide will help you quickly install and start using the News Copilot Chrome Extension. The backend services are hosted on Vercel, so you **do not** need to set up any local server, database, or authentication.
+
+**Installation Steps:**
+
+1.  **Download the Extension Files:**
+    *   Clone this repository or download it as a ZIP file and unzip it. You'll only need the `extension/` folder.
+    ```bash
+    git clone https://github.com/yourusername/News-Copilot.git 
+    # Or download and unzip the project
+    ```
+
+2.  **Load the Extension in Chrome:**
+    *   Open Google Chrome.
+    *   Navigate to `chrome://extensions`.
+    *   Enable "Developer mode" (usually a toggle in the top-right corner).
+    *   Click the "Load unpacked" button.
+    *   Select the `extension/` folder from the files you downloaded/cloned.
+
+3.  **Configure API Endpoint (If Necessary):**
+    *   The extension should be pre-configured to use the production API.
+    *   If you are provided with a specific API URL for beta testing, you might need to update it in the extension's options (if available) or by modifying the `extension/manifest.json` or `extension/background.js` to point to the correct production/beta API URL (e.g., `https://news-copilot.vercel.app`).
+    *   **Default Production API URL**: `https://news-copilot.vercel.app` (This should be the target for beta users).
+
+4.  **Start Using News Copilot:**
+    *   Visit any supported Greek news article (see list below).
+    *   Click the News Copilot extension icon in your Chrome toolbar.
+    *   Authenticate using the magic link sent to your email. (You'll be prompted for your email on first use).
+    *   Enjoy enhanced news reading!
+
+**Providing Feedback:**
+*   Your feedback is invaluable! Please report any issues, bugs, or suggestions via [Link to your preferred feedback channel - e.g., GitHub Issues, a specific email, or a beta feedback form].
+
+---
+
+## ✅ Supported Sites for Beta Testing
+
+Το News Copilot υποστηρίζει όλα τα μεγάλα ελληνικά ειδησεογραφικά πορτάλ. Η ανάλυση λειτουργεί καλύτερα σε άρθρα με κυρίως κειμενικό περιεχόμενο.
+
+**Κύρια Ειδησεογραφικά Μέσα:**
+- kathimerini.gr, tanea.gr, protothema.gr, skai.gr, tovima.gr, ethnos.gr, in.gr, news247.gr
+
+**Οικονομικά & Business:**
+- naftemporiki.gr, capital.gr
+
+**Ηλεκτρονικά Μέσα:**
+- iefimerida.gr, newsbeast.gr, cnn.gr, ant1news.gr, newsbomb.gr, newsit.gr
+
+**Εναλλακτικά & Πολιτικά:**
+- efsyn.gr, avgi.gr, documento.gr, liberal.gr, tvxs.gr
+
+*Δείτε το αρχείο `SUPPORTED_SITES.md` για την πλήρη, ενημερωμένη λίστα και τεχνικές λεπτομέρειες, καθώς και για πληροφορίες σχετικά με το πώς προσδιορίζεται η υποστήριξη.*
+
+### Analysis Sources (Used by the AI)
+- **Web Search**: Γενικές πληροφορίες και επαλήθευση
+- **News Sources**: Ειδησεογραφικές πηγές για fact-checking
+- **X/Twitter**: (Σύντομα "X Pulse") Για απόψεις και δημόσιο λόγο
+
+---
+
 ## 🌟 Επισκόπηση
 
 Το **News Copilot** είναι μια επαναστατική πλατφόρμα που μετατρέπει την εμπειρία ανάγνωσης ειδήσεων μέσω contextual AI ανάλυσης. Σχεδιασμένο ειδικά για ελληνικούς αναγνώστες, προσφέρει:
@@ -13,7 +74,7 @@
 - 🌐 **Πλαίσιο & Ανάλυση** - Πρόσθετες πληροφορίες από άλλες πηγές
 - 📖 **Καθαρή Προβολή** - Άρθρα χωρίς διαφημίσεις και διαχειριστές
 - 🎓 **Προοδευτική Ανάλυση** - Έλεγχος γεγονότων, ανάλυση μεροληψίας, χρονολόγιο, απόψεις ειδικών
-- 🔐 **Ασφαλής Αυθεντικοποίηση** - Supabase authentication με magic links
+- 🔐 **Ασφαλής Αυθεντικοποίηση** - Supabase authentication με magic links (μέσω του Vercel backend)
 
 ## 🏗️ Αρχιτεκτονική
 
@@ -33,7 +94,7 @@
 - **Scalable Deployment** - Production-ready Vercel serverless functions
 
 ### Authentication & User Management
-- **Supabase Backend** - Enterprise-grade authentication and database
+- **Supabase Backend** - Enterprise-grade authentication and database (managed by the deployed backend)
 - **Magic Link Auth** - Passwordless authentication via email
 - **JWT Tokens** - Secure token-based authentication
 - **Rate Limiting** - Tiered usage limits (10 free, 50 premium, unlimited admin)
@@ -92,7 +153,7 @@ extension/
 └── css/content_styles.css      - Extension styling
 ```
 
-### Backend API Stack (Vercel Deployment)
+### Backend API Stack (Deployed on Vercel)
 ```
 api/
 ├── index.py                    - Vercel entry point
@@ -273,7 +334,68 @@ Authorization: Bearer <admin_jwt_token>
 }
 ```
 
-## 🧪 Testing
+## 🧪 Testing & Code Quality
+
+### Development Tools Setup
+```bash
+# Install development dependencies
+pip install -r requirements.txt
+
+# Install pre-commit hooks
+pre-commit install
+```
+
+### Code Quality Tools
+
+#### Python Linting & Formatting
+- **Black**: Automatic code formatting (88 char line length)
+- **Ruff**: Fast Python linter checking for errors and style issues
+
+```bash
+# Format Python code automatically
+black api/
+
+# Check for linting issues
+ruff check api/
+
+# Fix auto-fixable issues
+ruff check --fix api/
+```
+
+#### Chrome Extension Validation
+The project includes a custom validation script for the Chrome extension:
+
+```bash
+# Validate extension structure and syntax
+python validate_extension.py
+```
+
+This checks:
+- ✅ manifest.json validity
+- ✅ Content script syntax (brace/parenthesis matching)
+- ✅ Required file presence
+- ✅ API endpoint references
+- ✅ Security issues (eval, innerHTML usage)
+- ✅ Chrome API usage patterns
+
+### Pre-commit Hooks
+Automatic checks before each commit:
+- Trailing whitespace removal
+- End of file fixing
+- JSON syntax validation
+- Python formatting with Black
+- Python linting with Ruff
+
+### Quick Commands (Makefile)
+```bash
+make install   # Install dependencies
+make lint      # Run all linting checks
+make format    # Auto-format code
+make test      # Run Python tests
+make validate  # Validate Chrome extension
+make clean     # Clean cache files
+make run       # Start local server
+```
 
 ### Run All Tests
 ```bash
@@ -314,6 +436,15 @@ python setup_test_env.py
 # Test supported sites
 python -c "from tests.test_sites import test_all_sites; test_all_sites()"
 ```
+
+### CI/CD (GitHub Actions)
+The project includes GitHub Actions workflows that run on every pull request:
+- Python linting (Black, Ruff)
+- Python tests with coverage
+- Chrome extension validation
+- Vercel deployment checks
+
+All checks must pass before merging to main branch.
 
 ## 📊 Supported Sources
 
