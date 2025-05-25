@@ -151,6 +151,7 @@ class AnalysisHandler:
         
         # Fetch article text
         article_text = fetch_text(article_url)
+        print(f"[get_deep_analysis] Fetched article_text (first 500 chars): {article_text[:500]}", flush=True)
         
         # Map analysis types to instruction generators and schemas
         instruction_map = {
@@ -206,6 +207,9 @@ class AnalysisHandler:
             stream=False
         )
         
+        if analysis_type == 'fact-check':
+            print(f"[get_deep_analysis] RAW Grok 'fact-check' response content: {completion.choices[0].message.content}", flush=True)
+
         print(f"[get_deep_analysis] Grok {analysis_type} call successful.", flush=True)
         
         # Parse response

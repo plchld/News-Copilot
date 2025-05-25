@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional
 from openai import OpenAI, APIStatusError
 from .config import API_KEY, API_URL, MODEL
 from .search_params_builder import build_search_params
+import json
 
 
 class GrokClient:
@@ -58,8 +59,25 @@ class GrokClient:
                 params["response_format"] = response_format
                 
             # Make the API call
+            print(f"[GrokClient] Sending prompt to Grok (model: {self.model}):\n--- PROMPT START ---\n{prompt[:1000]}...\n--- PROMPT END ---", flush=True)
+            if search_params:
+                print(f"[GrokClient] With search_params: {json.dumps(search_params, indent=2, ensure_ascii=False)}", flush=True)
+            if response_format:
+                print(f"[GrokClient] With response_format: {json.dumps(response_format, indent=2, ensure_ascii=False)}", flush=True)
+                
             completion = self.client.chat.completions.create(**params)
             
+            if not stream:
+                # For non-streamed responses, log the content directly
+                if completion.choices and completion.choices[0].message and completion.choices[0].message.content:
+                    print(f"[GrokClient] Received Grok response content:\n--- RESPONSE CONTENT START ---\n{completion.choices[0].message.content[:1000]}...\n--- RESPONSE CONTENT END ---", flush=True)
+                else:
+                    print("[GrokClient] Received Grok response, but no message content found.", flush=True)
+            else:
+                # For streamed responses, we can't log the full content here easily.
+                # The calling function (e.g., get_augmentations_stream) will handle streamed data.
+                print("[GrokClient] Grok call set to stream. Full response content will not be logged here.", flush=True)
+
             return completion
             
         except APIStatusError as e:
