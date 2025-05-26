@@ -177,24 +177,47 @@ class AgentCoordinator:
                 task = self._execute_agent_with_retry(agent, context, analysis_type)
                 batch_tasks.append((analysis_type, task))
             
-            # Wait for batch to complete
-            batch_results = {}
-            for analysis_type, task in batch_tasks:
-                try:
-                    result = await task
-                    results[analysis_type] = result
-                    batch_results[analysis_type.value] = 'SUCCESS' if result.success else f'FAILED: {result.error}'
-                except Exception as e:
-                    error_msg = str(e)
-                    self.logger.error(
-                        f"[COORDINATOR] {session_id} - Exception in {analysis_type.value}: {error_msg}"
-                    )
+            # Wait for batch to complete CONCURRENTLY using asyncio.gather
+            self.logger.info(
+                f"[COORDINATOR] {session_id} - Executing {len(batch_tasks)} agents concurrently..."
+            )
+            
+            try:
+                # Extract just the tasks for asyncio.gather
+                task_list = [task for _, task in batch_tasks]
+                task_results = await asyncio.gather(*task_list, return_exceptions=True)
+                
+                # Process results
+                batch_results = {}
+                for i, (analysis_type, _) in enumerate(batch_tasks):
+                    task_result = task_results[i]
+                    
+                    if isinstance(task_result, Exception):
+                        error_msg = str(task_result)
+                        self.logger.error(
+                            f"[COORDINATOR] {session_id} - Exception in {analysis_type.value}: {error_msg}"
+                        )
+                        results[analysis_type] = AgentResult(
+                            success=False,
+                            error=error_msg,
+                            agent_name=analysis_type.value
+                        )
+                        batch_results[analysis_type.value] = f'EXCEPTION: {error_msg}'
+                    else:
+                        results[analysis_type] = task_result
+                        batch_results[analysis_type.value] = 'SUCCESS' if task_result.success else f'FAILED: {task_result.error}'
+                        
+            except Exception as e:
+                # Fallback if asyncio.gather fails entirely
+                error_msg = f"Batch execution failed: {str(e)}"
+                self.logger.error(f"[COORDINATOR] {session_id} - {error_msg}")
+                for analysis_type, _ in batch_tasks:
                     results[analysis_type] = AgentResult(
                         success=False,
                         error=error_msg,
                         agent_name=analysis_type.value
                     )
-                    batch_results[analysis_type.value] = f'EXCEPTION: {error_msg}'
+                    batch_results[analysis_type.value] = f'BATCH_FAILED: {error_msg}'
             
             batch_time = (datetime.now() - batch_start).total_seconds()
             self.logger.info(
@@ -220,22 +243,46 @@ class AgentCoordinator:
             task = self._execute_agent_with_retry(agent, context, analysis_type)
             tasks.append((analysis_type, task))
         
-        # Process results as they complete
-        for analysis_type, task in tasks:
+        # Process results as they complete using asyncio.as_completed for true streaming
+        session_id = context.get('session_id', 'unknown')
+        
+        self.logger.info(
+            f"[COORDINATOR] {session_id} - Streaming execution: processing {len(tasks)} agents as they complete"
+        )
+        
+        # Create a mapping from task to analysis_type for identification
+        task_to_type = {task: analysis_type for analysis_type, task in tasks}
+        task_list = [task for _, task in tasks]
+        
+        # Use asyncio.as_completed to process results as they finish
+        for completed_task in asyncio.as_completed(task_list):
             try:
-                result = await task
+                result = await completed_task
+                analysis_type = task_to_type[completed_task]
                 results[analysis_type] = result
+                
+                self.logger.info(
+                    f"[COORDINATOR] {session_id} - {analysis_type.value} completed | "
+                    f"Success: {result.success} | Time: {result.execution_time_ms}ms"
+                )
                 
                 # Stream the result immediately
                 if result.success and stream_callback:
                     await stream_callback(analysis_type, result)
                     
             except Exception as e:
-                self.logger.error(f"Failed to execute {analysis_type}: {str(e)}")
+                # Find which analysis_type this was for error logging
+                analysis_type = task_to_type.get(completed_task, "unknown")
+                error_msg = str(e)
+                
+                self.logger.error(
+                    f"[COORDINATOR] {session_id} - Failed to execute {analysis_type}: {error_msg}"
+                )
+                
                 results[analysis_type] = AgentResult(
                     success=False,
-                    error=str(e),
-                    agent_name=analysis_type.value
+                    error=error_msg,
+                    agent_name=analysis_type.value if hasattr(analysis_type, 'value') else str(analysis_type)
                 )
         
         return results
@@ -341,15 +388,15 @@ class AgentCoordinator:
     
     def _group_by_priority(self, analysis_types: List[AnalysisType]) -> Dict[int, List[AnalysisType]]:
         """Group analysis types by execution priority"""
-        # Priority based on dependencies and complexity
+        # Updated priority: jargon and viewpoints can run concurrently for basic analysis
         priority_map = {
-            AnalysisType.JARGON: 1,  # Simple, can run first
-            AnalysisType.TIMELINE: 1,  # Independent
-            AnalysisType.VIEWPOINTS: 2,  # Needs search
-            AnalysisType.FACT_CHECK: 2,  # Needs search
-            AnalysisType.EXPERT: 2,  # Needs search
-            AnalysisType.BIAS: 3,  # Complex reasoning
-            AnalysisType.X_PULSE: 3,  # Most complex with sub-agents
+            AnalysisType.JARGON: 1,      # Basic analysis - can run with viewpoints
+            AnalysisType.VIEWPOINTS: 1,  # Basic analysis - can run with jargon  
+            AnalysisType.TIMELINE: 2,    # Independent deep analysis
+            AnalysisType.FACT_CHECK: 2,  # Independent deep analysis
+            AnalysisType.EXPERT: 2,      # Independent deep analysis
+            AnalysisType.BIAS: 3,        # Complex reasoning
+            AnalysisType.X_PULSE: 3,     # Most complex with sub-agents
         }
         
         groups = {}

@@ -42,12 +42,25 @@ class AnalysisHandler:
     
     def __init__(self):
         self.grok_client = GrokClient()
+        # Initialize agent coordinator for concurrent execution
+        try:
+            from .agents.coordinator import AgentCoordinator, CoordinatorConfig
+        except ImportError:
+            # Fallback for direct execution
+            from agents.coordinator import AgentCoordinator, CoordinatorConfig
+        config = CoordinatorConfig(
+            max_parallel_agents=4,  # Allow concurrent execution
+            enable_streaming=False,  # We handle streaming at this level
+            timeout_seconds=120,
+            retry_failed_agents=True
+        )
+        self.coordinator = AgentCoordinator(self.grok_client, config)
         
     def stream_event(self, event_type: str, data: Any) -> str:
         """Format a server-sent event"""
         return f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
     
-    def get_augmentations_stream(self, article_url: str) -> Generator[str, None, None]:
+    async def get_augmentations_stream(self, article_url: str) -> Generator[str, None, None]:
         """
         Stream article augmentations (jargon explanations and alternative viewpoints).
         
@@ -94,82 +107,82 @@ class AnalysisHandler:
                     if article_domain not in source['excluded_websites']:
                         source['excluded_websites'].append(article_domain)
         
-        final_results = {"jargon": None, "jargon_citations": [], "viewpoints": None, "viewpoints_citations": []}
-        
-        # Get jargon explanations
+        # Use agent coordinator for concurrent jargon + viewpoints execution
         try:
-            print("[get_augmentations_stream] Preparing for Grok jargon call...", flush=True)
-            yield self.stream_event("progress", {"status": "Analyzing terms and concepts..."})
+            print("[get_augmentations_stream] Starting concurrent jargon + viewpoints analysis...", flush=True)
+            yield self.stream_event("progress", {"status": "🚀 Starting concurrent analysis..."})
             
-            # Use proper prompt utilities
-            from .prompt_utils import (
-                get_jargon_task_instruction, 
-                get_jargon_response_schema,
-                build_prompt,
-                inject_runtime_search_context
+            # Import agent types
+            try:
+                from .agents.coordinator import AnalysisType
+            except ImportError:
+                from agents.coordinator import AnalysisType
+            
+            # Build context for agents
+            context = {
+                'article_url': article_url,
+                'article_text': article_text,
+                'user_tier': 'free',  # Default tier for basic analysis
+                'user_id': 'basic_analysis'
+            }
+            
+            # Execute jargon and viewpoints agents concurrently
+            yield self.stream_event("progress", {"status": "🧠 Analyzing terms & finding viewpoints in parallel..."})
+            
+            results = await self.coordinator.analyze_article(
+                article_url=article_url,
+                article_text=article_text,
+                analysis_types=[AnalysisType.JARGON, AnalysisType.VIEWPOINTS],
+                user_context=context
             )
             
-            task_instruction = get_jargon_task_instruction(article_text)
-            json_schema = get_jargon_response_schema()
-            system_prompt = build_prompt(task_instruction, json_schema)
-            system_prompt = inject_runtime_search_context(system_prompt, search_params)
+            print(f"[get_augmentations_stream] Concurrent analysis completed! Results: {list(results.keys())}", flush=True)
             
-            jargon_completion = self.grok_client.create_completion(
-                prompt=system_prompt,
-                search_params=search_params,
-                response_format={"type": "json_object"},
-                stream=False
+            # Extract results and format for frontend compatibility
+            final_results = {"jargon": None, "jargon_citations": [], "viewpoints": None, "viewpoints_citations": []}
+            
+            # Process jargon results
+            if AnalysisType.JARGON in results and results[AnalysisType.JARGON].success:
+                jargon_result = results[AnalysisType.JARGON]
+                final_results["jargon"] = jargon_result.data
+                final_results["jargon_citations"] = []  # Agent system handles citations differently
+                print(f"[get_augmentations_stream] Jargon analysis successful in {jargon_result.execution_time_ms}ms", flush=True)
+            else:
+                error = results.get(AnalysisType.JARGON, {}).error if AnalysisType.JARGON in results else "Agent not executed"
+                print(f"[get_augmentations_stream] Jargon analysis failed: {error}", flush=True)
+                yield self.stream_event("error", {"message": "Error explaining terms."})
+                return
+            
+            # Process viewpoints results
+            if AnalysisType.VIEWPOINTS in results and results[AnalysisType.VIEWPOINTS].success:
+                viewpoints_result = results[AnalysisType.VIEWPOINTS]
+                final_results["viewpoints"] = viewpoints_result.data
+                final_results["viewpoints_citations"] = []  # Agent system handles citations differently
+                print(f"[get_augmentations_stream] Viewpoints analysis successful in {viewpoints_result.execution_time_ms}ms", flush=True)
+            else:
+                error = results.get(AnalysisType.VIEWPOINTS, {}).error if AnalysisType.VIEWPOINTS in results else "Agent not executed"
+                print(f"[get_augmentations_stream] Viewpoints analysis failed: {error}", flush=True)
+                yield self.stream_event("error", {"message": "Error finding viewpoints."})
+                return
+            
+            # Calculate total performance improvement
+            total_time = max(
+                results.get(AnalysisType.JARGON, {}).execution_time_ms or 0,
+                results.get(AnalysisType.VIEWPOINTS, {}).execution_time_ms or 0
             )
+            sequential_time = (results.get(AnalysisType.JARGON, {}).execution_time_ms or 0) + \
+                            (results.get(AnalysisType.VIEWPOINTS, {}).execution_time_ms or 0)
             
-            print("[get_augmentations_stream] Grok jargon call successful.", flush=True)
+            if sequential_time > 0:
+                speedup = sequential_time / total_time if total_time > 0 else 1
+                print(f"[PERFORMANCE] Concurrent execution speedup: {speedup:.1f}x faster ({sequential_time}ms → {total_time}ms)", flush=True)
             
-            if jargon_completion.choices[0].message.content:
-                final_results["jargon"] = json.loads(jargon_completion.choices[0].message.content)
-            
-            final_results["jargon_citations"] = self.grok_client.extract_citations(jargon_completion)
-            yield self.stream_event("progress", {"status": "Terms explained"})
+            yield self.stream_event("progress", {"status": "✅ Concurrent analysis complete!"})
             
         except Exception as e:
-            error_message = f"Error during jargon analysis: {type(e).__name__} - {e}"
-            print(f"[get_augmentations_stream] ERROR (jargon): {error_message}", flush=True)
-            yield self.stream_event("error", {"message": "Error explaining terms."})
-            return
-        
-        # Get alternative viewpoints
-        try:
-            print("[get_augmentations_stream] Preparing for Grok viewpoints call...", flush=True)
-            yield self.stream_event("progress", {"status": "Finding alternative viewpoints..."})
-            
-            # Use proper prompt utilities
-            from .prompt_utils import (
-                get_alt_view_task_instruction,
-                get_alternative_viewpoints_schema,
-                build_prompt,
-                inject_runtime_search_context
-            )
-            
-            task_instruction = get_alt_view_task_instruction(article_text)
-            json_schema = get_alternative_viewpoints_schema()
-            system_prompt = build_prompt(task_instruction, json_schema)
-            system_prompt = inject_runtime_search_context(system_prompt, search_params)
-            
-            viewpoints_completion = self.grok_client.create_completion(
-                prompt=system_prompt,
-                search_params=search_params,
-                response_format={"type": "json_object"},
-                stream=False
-            )
-            
-            print("[get_augmentations_stream] Grok viewpoints call successful.", flush=True)
-            
-            final_results["viewpoints"] = viewpoints_completion.choices[0].message.content
-            final_results["viewpoints_citations"] = self.grok_client.extract_citations(viewpoints_completion)
-            yield self.stream_event("progress", {"status": "Alternative viewpoints found"})
-            
-        except Exception as e:
-            error_message = f"Error during viewpoints analysis: {type(e).__name__} - {e}"
-            print(f"[get_augmentations_stream] ERROR (viewpoints): {error_message}", flush=True)
-            yield self.stream_event("error", {"message": "Error finding viewpoints."})
+            error_message = f"Error during concurrent analysis: {type(e).__name__} - {e}"
+            print(f"[get_augmentations_stream] ERROR: {error_message}", flush=True)
+            yield self.stream_event("error", {"message": "Error during analysis."})
             return
         
         print(f"[get_augmentations_stream] All tasks complete. Sending final results.", flush=True)
