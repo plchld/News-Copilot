@@ -316,12 +316,36 @@ function renderViewpoints(viewpointsData, citationsData, panel) {
                 <path d="M9 3v18"/>
             </svg>
         </div>
-        <h3 class="section-title">🌐 Πλαίσιο & Ανάλυση</h3>
+        <h3 class="section-title">🌐 Αλλες Απόψεις</h3>
     `;
     
     section.appendChild(sectionHeader);
     
-    if (viewpointsData && viewpointsData.trim() !== "") {
+    // Handle both old format (string) and new format (structured JSON)
+    let parsedViewpoints = null;
+    try {
+        // Try to parse as JSON first (new format)
+        if (typeof viewpointsData === 'string') {
+            parsedViewpoints = JSON.parse(viewpointsData);
+        } else if (Array.isArray(viewpointsData)) {
+            parsedViewpoints = viewpointsData;
+        }
+    } catch (e) {
+        // If JSON parsing fails, treat as old text format
+        parsedViewpoints = null;
+    }
+    
+    if (parsedViewpoints && Array.isArray(parsedViewpoints) && parsedViewpoints.length > 0) {
+        // New structured format
+        const contextIntro = document.createElement('p');
+        contextIntro.style.cssText = 'margin: 0 0 16px 0; font-size: 13px; color: #64748b; line-height: 1.5;';
+        contextIntro.textContent = 'Αλλες απόψεις και πηγές που καλύπτουν την ίδια ιστορία:';
+        section.appendChild(contextIntro);
+        
+        const formattedViewpoints = formatStructuredViewpoints(parsedViewpoints);
+        section.insertAdjacentHTML('beforeend', formattedViewpoints);
+    } else if (viewpointsData && typeof viewpointsData === 'string' && viewpointsData.trim() !== "") {
+        // Legacy text format
         const contextIntro = document.createElement('p');
         contextIntro.style.cssText = 'margin: 0 0 16px 0; font-size: 13px; color: #64748b; line-height: 1.5;';
         contextIntro.textContent = 'Πρόσθετες πληροφορίες και ανάλυση για καλύτερη κατανόηση του θέματος:';
@@ -336,20 +360,77 @@ function renderViewpoints(viewpointsData, citationsData, panel) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path d="M21 16V8C20.9996 7.64927 20.9071 7.30481 20.7315 7.00116C20.556 6.69751 20.3037 6.44536 20 6.27V6C20 5.46957 19.7893 4.96086 19.4142 4.58579C19.0391 4.21071 18.5304 4 18 4H6C5.46957 4 4.96086 4.21071 4.58579 4.58579C4.21071 4.96086 4 5.46957 4 6V6.27C3.69625 6.44536 3.44397 6.69751 3.26846 7.00116C3.09294 7.30481 3.00036 7.64927 3 8V16C3 16.7956 3.31607 17.5587 3.87868 18.1213C4.44129 18.6839 5.20435 19 6 19H18C18.7956 19 19.5587 18.6839 20.1213 18.1213C20.6839 17.5587 21 16.7956 21 16Z"/>
             </svg>
-            <h3>Δεν βρέθηκε πρόσθετο πλαίσιο</h3>
-            <p>Δεν εντοπίστηκαν πρόσθετες πληροφορίες για αυτό το θέμα.</p>
+            <h3>Δεν βρέθηκαν άλλες απόψεις</h3>
+            <p>Δεν εντοπίστηκαν διαφορετικές απόψεις για αυτό το θέμα.</p>
         `;
         section.appendChild(emptyState);
     }
     
     if (citationsData && citationsData.length > 0) {
-        renderCitations(citationsData, section, "Πηγές πληροφοριών");
+        renderCitations(citationsData, section, "Πηγές αλλες απόψεις");
     }
     
     panel.appendChild(section);
 }
 
-// --- Enhanced Viewpoint Formatting ---
+// --- New Structured Viewpoints Formatting ---
+function formatStructuredViewpoints(viewpoints) {
+    try {
+        if (!Array.isArray(viewpoints) || viewpoints.length === 0) {
+            return '<div style="padding: 20px; text-align: center; color: #6b7280;">Δεν υπάρχουν δεδομένα για εμφάνιση</div>';
+        }
+        
+        return viewpoints.map((viewpoint, index) => {
+            const sourceTitle = viewpoint.source_title || 'Άγνωστη Πηγή';
+            const provider = viewpoint.provider || '';
+            const publishedDate = viewpoint.published_date || '';
+            const differenceSummary = viewpoint.difference_summary || 'Δεν υπάρχει περίληψη';
+            
+            // Extract domain for visual clarity
+            let providerDomain = provider;
+            try {
+                if (provider && provider.includes('http')) {
+                    const url = new URL(provider);
+                    providerDomain = url.hostname.replace('www.', '');
+                }
+            } catch (e) {
+                // Keep original provider text if URL parsing fails
+            }
+            
+            return `
+                <div class="viewpoint-card" style="background: white; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 12px; position: relative; overflow: hidden;">
+                    <!-- Source Header -->
+                    <div style="display: flex; align-items: start; gap: 12px; margin-bottom: 12px;">
+                        <div style="width: 32px; height: 32px; background: #f8fafc; border: 2px solid #8b5cf6; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <span style="font-size: 14px; font-weight: 600; color: #8b5cf6;">${index + 1}</span>
+                        </div>
+                        <div style="flex: 1;">
+                            <h5 style="margin: 0 0 4px 0; color: #1e293b; font-size: 14px; font-weight: 600; line-height: 1.3;">${sourceTitle}</h5>
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                ${providerDomain ? `<span style="font-size: 11px; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">${providerDomain}</span>` : ''}
+                                ${publishedDate ? `<span style="font-size: 11px; color: #64748b;">${publishedDate}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Difference Content -->
+                    <div style="padding: 12px; background: #f8fafc; border-radius: 8px; border-left: 4px solid #8b5cf6;">
+                        <div style="font-size: 11px; color: #6b7280; font-weight: 500; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">
+                            🔍 Διαφορετική Προσέγγιση
+                        </div>
+                        <div style="font-size: 13px; color: #334155; line-height: 1.5;">${linkifyXPosts(differenceSummary)}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Error formatting structured viewpoints:', error);
+        return '<div style="padding: 20px; text-align: center; color: #dc2626;">Σφάλμα μορφοποίησης απόψεων</div>';
+    }
+}
+
+// --- Enhanced Viewpoint Formatting (Legacy) ---
 function formatEnhancedViewpoints(text) {
     const lines = text.split('\n').filter(line => line.trim());
     let html = '';
