@@ -476,6 +476,7 @@
             errorEl.textContent = message;
             errorEl.style.display = 'block';
             setTimeout(() => errorEl.style.display = 'none', 5000);
+            hideProgress();
         }
 
         function showSuccess(message) {
@@ -483,6 +484,18 @@
             successEl.textContent = message;
             successEl.style.display = 'block';
             setTimeout(() => successEl.style.display = 'none', 3000);
+            hideProgress();
+        }
+
+        function showProgress(message) {
+            const progressEl = document.getElementById('progressIndicator');
+            progressEl.textContent = message;
+            progressEl.style.display = 'block';
+        }
+
+        function hideProgress() {
+            const progressEl = document.getElementById('progressIndicator');
+            progressEl.style.display = 'none';
         }
 
         function showLoading(tabId) {

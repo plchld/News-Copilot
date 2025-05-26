@@ -51,45 +51,52 @@ function createStyledElement(tag, styles = {}, textContent = "") {
 
 // --- Progress Messages Sequence ---
 let progressInterval = null;
-let progressStep = 0;
+let lastServerMessage = "";
 let lastServerMessageTime = 0;
-let isUsingServerMessages = false;
+let interpolationStep = 0;
 
-const progressMessages = [
-    "🔍 Σύνδεση με την υπηρεσία AI...",
-    "📄 Εξαγωγή περιεχομένου άρθρου...",
-    "🧠 Ανάλυση κειμένου με Grok AI...",
-    "📚 Αναζήτηση σχετικών πληροφοριών...",
-    "🔎 Εντοπισμός τεχνικών όρων...",
-    "🌐 Σύνθεση εναλλακτικών απόψεων...",
-    "✨ Προετοιμασία αποτελεσμάτων...",
-    "📊 Οργάνωση πληροφοριών...",
-    "🎯 Τελική επεξεργασία..."
-];
+// Interpolation messages to show between real server updates
+const interpolationMessages = {
+    "🔍 Σύνδεση με την υπηρεσία AI...": [
+        "📡 Επικοινωνία με το AI...",
+        "⚙️ Προετοιμασία ανάλυσης..."
+    ],
+    "📄 Εξαγωγή περιεχομένου άρθρου...": [
+        "📖 Ανάγνωση άρθρου...",
+        "🔍 Επεξεργασία κειμένου..."
+    ],
+    "🧠 Ανάλυση κειμένου με Grok AI...": [
+        "🤖 Το AI επεξεργάζεται το άρθρο...",
+        "💭 Αναζήτηση πληροφοριών...",
+        "📚 Σύνδεση με βάσεις δεδομένων..."
+    ],
+    "📚 Σύνθεση διαφορετικών οπτικών...": [
+        "🌐 Αναζήτηση εναλλακτικών πηγών...",
+        "🔄 Σύγκριση απόψεων...",
+        "📊 Οργάνωση ευρημάτων..."
+    ]
+};
 
 function showProgressSequence() {
-    progressStep = 0;
+    // Show initial message
+    updateStatusDisplay("🔍 Σύνδεση με την υπηρεσία AI...");
+    lastServerMessage = "🔍 Σύνδεση με την υπηρεσία AI...";
     lastServerMessageTime = Date.now();
-    isUsingServerMessages = false;
-    updateStatusDisplay(progressMessages[0]);
+    interpolationStep = 0;
     
-    // Show a new message every 4-5 seconds for better readability
-    // But only if we're not receiving server messages
+    // Start interpolation between real server messages
     progressInterval = setInterval(() => {
         const timeSinceLastServerMessage = Date.now() - lastServerMessageTime;
         
-        // Only show client messages if we haven't received server messages for 6 seconds
-        if (!isUsingServerMessages || timeSinceLastServerMessage > 6000) {
-            progressStep++;
-            if (progressStep < progressMessages.length) {
-                updateStatusDisplay(progressMessages[progressStep]);
-            } else {
-                // Loop back to middle messages if taking longer
-                progressStep = 2; // Start from the 3rd message to avoid connection messages
-                updateStatusDisplay(progressMessages[progressStep]);
+        // If we haven't received a server message for 3 seconds, show interpolation
+        if (timeSinceLastServerMessage > 3000) {
+            const interpolations = interpolationMessages[lastServerMessage];
+            if (interpolations && interpolationStep < interpolations.length) {
+                updateStatusDisplay(interpolations[interpolationStep]);
+                interpolationStep++;
             }
         }
-    }, 4500);
+    }, 3000);
 }
 
 function stopProgressSequence() {
@@ -97,9 +104,9 @@ function stopProgressSequence() {
         clearInterval(progressInterval);
         progressInterval = null;
     }
-    progressStep = 0;
+    lastServerMessage = "";
     lastServerMessageTime = 0;
-    isUsingServerMessages = false;
+    interpolationStep = 0;
 }
 
 // --- Create Intelligent Sidebar ---
@@ -740,9 +747,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "PROGRESS_UPDATE") {
         console.log("Ενημέρωση προόδου από background:", message.status);
         
-        // Mark that we're receiving server messages
+        // Store the real server message
+        lastServerMessage = message.status;
         lastServerMessageTime = Date.now();
-        isUsingServerMessages = true;
+        interpolationStep = 0;  // Reset interpolation when we get a real message
         
         // Display the server message
         updateStatusDisplay(message.status);
