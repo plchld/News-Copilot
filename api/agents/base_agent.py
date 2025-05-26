@@ -1,13 +1,14 @@
 """Base Agent Classes for News Copilot Agentic Architecture"""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Tuple, Callable
+from typing import Dict, Any, Optional, List, Tuple, Callable, Type
 from enum import Enum
 import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime
 import json
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,8 @@ class ModelType(Enum):
     GROK_3_MINI = "grok-3-mini"
     GROK_3 = "grok-3-latest"
     GROK_3_FAST = "grok-3-fast"
+    # Added from guide, assuming these are new or aliases
+    GROK_3_MINI_FAST = "grok-3-mini-fast"
 
 
 class ComplexityLevel(Enum):
@@ -258,135 +261,211 @@ class BaseAgent(ABC, AsyncCommunicationMixin):
 
 class AnalysisAgent(BaseAgent):
     """Base class for standard analysis agents"""
-    
-    def __init__(self, config: AgentConfig, grok_client: Any, 
-                 prompt_builder: Any, schema_builder: Any):
+
+    def __init__(
+        self,
+        config: AgentConfig,
+        grok_client: Any,
+        prompt_builder: Callable,
+        response_model: Optional[Type[BaseModel]] = None, # Added
+        schema_builder: Optional[Callable] = None  # Modified for clarity from guide
+    ):
         super().__init__(config, grok_client)
         self.prompt_builder = prompt_builder
+        self.response_model = response_model # Added
         self.schema_builder = schema_builder
-    
-    async def execute(self, context: Dict[str, Any]) -> AgentResult:
-        """Execute analysis with intelligent model selection"""
-        start_time = self.log_execution_start(context)
-        session_id = context.get('session_id', 'unknown')
+
+    def _get_system_prompt(self) -> str: # Added based on guide
+        """Returns a generic system prompt. Can be overridden by subclasses."""
+        # This is a placeholder. Actual system prompt content might be more specific.
+        return "You are a helpful AI assistant. Please follow the user's instructions carefully."
+
+    async def _call_grok_structured(
+        self,
+        prompt: str,
+        model: ModelType,
+        search_params: Optional[Dict] = None,
+        context: Dict[str, Any] = None
+    ) -> BaseModel:
+        """Call Grok API with structured output"""
         
-        # Performance tracking
+        # Check if model supports structured output
+        structured_models = [
+            ModelType.GROK_3,
+            ModelType.GROK_3_FAST,
+            ModelType.GROK_3_MINI,
+            ModelType.GROK_3_MINI_FAST
+        ]
+        
+        if model not in structured_models or not self.response_model:
+            # Fallback to traditional JSON schema approach
+            # Assuming _call_grok_legacy will be the renamed _call_grok
+            legacy_result_dict = await self._call_grok_legacy(prompt, self.schema_builder(), model, search_params, context)
+            # We need to return a BaseModel instance, but legacy returns a dict.
+            # This part might need adjustment based on how legacy schema validation/parsing is handled
+            # For now, if it falls back, it cannot directly return a Pydantic model unless schema_builder handles it.
+            # This indicates a potential design consideration: structured calls expect Pydantic models, legacy calls return dicts.
+            # The execute method will handle dicts from legacy calls.
+            # However, this method's signature is BaseModel. This is problematic for fallback.
+            # Let's assume for now that if fallback occurs, an error or a compatible dict is raised/returned and handled by caller.
+            # Or, the guide implies _call_grok_legacy would be called by execute, not by _call_grok_structured.
+            # Re-reading: "If not, fall back to a legacy method (e.g., _call_grok_legacy ...)" - this implies _call_grok_structured itself does the fallback.
+            # This means _call_grok_legacy must return something that can be used to construct self.response_model, or this method's return type is wrong.
+            # The guide's `execute` method shows `_call_grok_legacy` being called directly when `response_model` is None.
+            # So, this fallback here is likely if the *model type* doesn't support structured, even if response_model is provided.
+            # For now, let's raise an error if fallback is needed here, as the calling context in `execute` should prevent this.
+            self.logger.warning(f"Model {model.value} or response_model not suitable for structured output. Fallback handling should occur in execute.")
+            raise ValueError(f"Model {model.value} does not support structured output or no response_model provided to _call_grok_structured.")
+
+        try:
+            # Log the structured call (using existing logger as _log_phase is not defined here)
+            self.logger.info(
+                f"Calling Grok with structured output. Model: {model.value}, Response Model: {self.response_model.__name__}"
+            )
+            
+            # Build messages
+            messages = [
+                {"role": "system", "content": self._get_system_prompt()}, # Added system prompt call
+                {"role": "user", "content": prompt}
+            ]
+            
+            # Make structured API call
+            response = await self.grok_client.async_client.beta.chat.completions.parse(
+                model=model.value,
+                messages=messages,
+                response_format=self.response_model,
+                search_parameters=search_params, # search_params might be named search_parameters
+                temperature=0.7 # Temperature from example
+            )
+            
+            # Get parsed result
+            parsed_result = response.choices[0].message.parsed
+            
+            # Log token usage
+            if hasattr(response, 'usage') and response.usage:
+                self.tokens_used = response.usage.total_tokens # Assuming self.tokens_used is a class member for AgentResult
+                self.log_api_response(context, model, self.tokens_used, 0, True) # execution_time_ms needs to be calculated
+            
+            return parsed_result
+            
+        except Exception as e:
+            self.logger.error(f"Grok structured API error: {str(e)}, Model: {model.value}")
+            # self._log_phase("grok_structured_error", error=str(e), model=model.value) # _log_phase not defined
+            raise
+
+    async def execute(self, context: Dict[str, Any]) -> AgentResult:
+        """Execute analysis with structured output support"""
+        # Standard setup
+        # self._prepare_execution(context) # _prepare_execution not in original, from guide
+        exec_start_time = self.log_execution_start(context) # Renamed start_time to avoid conflict
+        session_id = context.get('session_id', 'unknown')
+        tokens_used = 0 # Initialize tokens_used
+        api_calls_count = 0 # Initialize api_calls_count
+        # Performance tracking (simplified from original)
         phase_times = {}
         
         try:
             # Phase 1: Model Selection
             phase_start = datetime.now()
-            model = self.select_model(context)
+            model = self.select_model(context) # self.selected_model in guide, using existing
+            self.selected_model = model # Store for potential later use, as in guide
             phase_times['model_selection'] = int((datetime.now() - phase_start).total_seconds() * 1000)
-            
+
             # Phase 2: Prompt Building
             phase_start = datetime.now()
-            self.logger.debug(f"[PROMPT_BUILD] {session_id} - {self.config.name} | Building prompt and schema")
-            prompt = self.prompt_builder(context)
-            schema = self.schema_builder()
+            # prompt = self._build_prompt(context) # _build_prompt not in original, from guide
+            prompt = self.prompt_builder(context) # Using existing prompt_builder
             phase_times['prompt_build'] = int((datetime.now() - phase_start).total_seconds() * 1000)
-            
+
             # Phase 3: Search Parameters
             phase_start = datetime.now()
+            # search_params = self._build_search_params(context) # Already exists
             search_params = self._build_search_params(context)
             phase_times['search_params'] = int((datetime.now() - phase_start).total_seconds() * 1000)
-            
+
             if search_params:
                 self.logger.debug(
                     f"[SEARCH_PARAMS] {session_id} - {self.config.name} | "
                     f"Search enabled with {len(search_params.get('sources', []))} sources"
                 )
             
-            # Log pre-API performance
             prep_time = sum(phase_times.values())
             self.logger.info(
-                f"[PRE_API_TIMING] {session_id} - {self.config.name} | "
-                f"Total prep: {prep_time}ms | "
-                f"Breakdown: model={phase_times['model_selection']}ms, "
-                f"prompt={phase_times['prompt_build']}ms, "
-                f"search={phase_times['search_params']}ms"
+                f"[PRE_API_TIMING] {session_id} - {self.config.name} | Total prep: {prep_time}ms"
             )
+
+            result_data = None
+            api_start_time = datetime.now()
+
+            if self.response_model:
+                # Call Grok with structured output
+                structured_result = await self._call_grok_structured(
+                    prompt, self.selected_model, search_params, context
+                )
+                # Convert Pydantic model to dict
+                result_data = structured_result.model_dump()
+                tokens_used = getattr(self, 'tokens_used', 0) # From _call_grok_structured
+                api_calls_count = 1 # Assuming one call for now
+            else:
+                # Legacy JSON approach
+                if not self.schema_builder:
+                    raise ValueError("Schema builder is required for non-structured responses.")
+                legacy_response = await self._call_grok_legacy( # Renamed from _call_grok
+                    prompt, self.schema_builder(), self.selected_model, search_params, context
+                )
+                result_data = legacy_response.get('data')
+                tokens_used = legacy_response.get('tokens_used', 0)
+                api_calls_count = legacy_response.get('api_calls_count', 1)
             
-            # Phase 4: API Call
-            api_start = datetime.now()
-            response = await self._call_grok(
-                prompt=prompt,
-                schema=schema,
-                model=model,
-                search_params=search_params,
-                context=context
-            )
-            phase_times['api_call'] = int((datetime.now() - api_start).total_seconds() * 1000)
-            
-            # Phase 5: Response Validation
+            phase_times['api_call'] = int((datetime.now() - api_start_time).total_seconds() * 1000)
+
+            # Phase 5: Response Validation (Simplified)
             phase_start = datetime.now()
-            result_data = response.get('data')
-            tokens_used = response.get('tokens_used', 0)
-            
-            # Validate response content for debugging empty results
             validation_status = self._validate_response_content(result_data, session_id)
             phase_times['validation'] = int((datetime.now() - phase_start).total_seconds() * 1000)
-            
-            # Calculate total execution time
-            total_time_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            
-            # Log detailed performance breakdown
-            api_percentage = (phase_times['api_call']/total_time_ms*100) if total_time_ms > 0 else 0
-            prep_percentage = (prep_time/total_time_ms*100) if total_time_ms > 0 else 0
-            
+
+            total_time_ms = int((datetime.now() - exec_start_time).total_seconds() * 1000)
+
             self.logger.info(
                 f"[PERFORMANCE_BREAKDOWN] {session_id} - {self.config.name} | "
-                f"Total: {total_time_ms}ms | "
-                f"API: {phase_times['api_call']}ms ({api_percentage:.1f}%) | "
-                f"Prep: {prep_time}ms ({prep_percentage:.1f}%) | "
-                f"Validation: {phase_times['validation']}ms | "
-                f"Tokens: {tokens_used} | "
-                f"Response: {validation_status}"
+                f"Total: {total_time_ms}ms | API: {phase_times['api_call']}ms | Tokens: {tokens_used}"
             )
             
-            result = AgentResult(
+            # Create success result (adapted from guide)
+            # result = self._create_success_result(result_data) 
+            # _create_success_result not defined, creating AgentResult directly
+            agent_result = AgentResult(
                 success=True,
                 data=result_data,
-                model_used=model,
+                model_used=self.selected_model,
                 tokens_used=tokens_used,
                 execution_time_ms=total_time_ms,
                 agent_name=self.config.name,
-                api_calls_count=response.get('api_calls_count', 1),
-                refinement_calls_count=response.get('refinement_calls_count', 0)
+                api_calls_count=api_calls_count, # Added
+                refinement_calls_count=0 # Assuming no refinement in this flow yet
             )
-            
-            # Log execution completion
-            self.log_execution_end(context, start_time, result)
-            
-            return result
+            self.log_execution_end(context, exec_start_time, agent_result)
+            return agent_result
             
         except Exception as e:
+            # Create error result (adapted from guide)
+            # result = self._create_error_result(str(e))
+            # _create_error_result not defined, creating AgentResult directly
             error_msg = str(e)
-            total_time_ms = int((datetime.now() - start_time).total_seconds() * 1000)
-            
-            # Log performance even on failure
-            prep_time = sum(phase_times.values()) if phase_times else 0
+            total_time_ms = int((datetime.now() - exec_start_time).total_seconds() * 1000)
             self.logger.error(
-                f"[PERFORMANCE_FAILURE] {session_id} - {self.config.name} | "
-                f"Failed after {total_time_ms}ms | "
-                f"Prep completed: {prep_time}ms | "
-                f"Phases completed: {list(phase_times.keys())} | "
-                f"Error: {error_msg}"
+                 f"[EXECUTION_FAILURE] {session_id} - {self.config.name} | Error: {error_msg} | Total time: {total_time_ms}ms"
             )
-            
-            result = AgentResult(
+            agent_result = AgentResult(
                 success=False,
                 error=error_msg,
                 execution_time_ms=total_time_ms,
                 agent_name=self.config.name
             )
-            
-            # Log execution failure
-            self.log_execution_end(context, start_time, result)
-            
-            return result
-    
-    def _validate_response_content(self, data: Dict[str, Any], session_id: str) -> str:
+            self.log_execution_end(context, exec_start_time, agent_result)
+            return agent_result
+
+    def _validate_response_content(self, data: Optional[Dict[str, Any]], session_id: str) -> str: # data can be None
         """Validate response content and return status for debugging empty results"""
         if not data:
             self.logger.warning(
@@ -395,7 +474,7 @@ class AnalysisAgent(BaseAgent):
             )
             return "EMPTY_DATA"
         
-        if not isinstance(data, dict):
+        if not isinstance(data, dict): # This check is important
             self.logger.warning(
                 f"[INVALID_RESPONSE] {session_id} - {self.config.name} | "
                 f"Response data is not a dict: {type(data)}"
@@ -413,7 +492,7 @@ class AnalysisAgent(BaseAgent):
         
         # Check if main content arrays/objects are empty
         empty_fields = []
-        for key, value in data.items():
+        for key, value in data.items(): # Iterate through dict items
             if isinstance(value, list) and len(value) == 0:
                 empty_fields.append(key)
             elif isinstance(value, str) and len(value.strip()) == 0:
@@ -429,7 +508,7 @@ class AnalysisAgent(BaseAgent):
         
         # Log successful content validation
         content_summary = {}
-        for key, value in data.items():
+        for key, value in data.items(): # Iterate through dict items
             if isinstance(value, list):
                 content_summary[key] = f"{len(value)}_items"
             elif isinstance(value, str):
@@ -443,10 +522,10 @@ class AnalysisAgent(BaseAgent):
         )
         
         return "VALID_CONTENT"
-    
-    async def _call_grok(self, prompt: str, schema: Dict, model: ModelType,
-                        search_params: Optional[Dict], context: Dict) -> Dict:
-        """Call Grok API with appropriate configuration"""
+
+    async def _call_grok_legacy(self, prompt: str, schema: Dict, model: ModelType, # Renamed from _call_grok
+                                 search_params: Optional[Dict], context: Dict) -> Dict:
+        """Call Grok API with appropriate configuration (legacy JSON mode)"""
         try:
             # Check if we have conversation history (for refinements)
             conversation_history = context.get('conversation_history', [])

@@ -2,21 +2,22 @@
 
 from typing import Dict, Any, Optional
 from .base_agent import AnalysisAgent, AgentConfig, ModelType, ComplexityLevel
-from ..prompt_utils import get_jargon_task_instruction, get_jargon_response_schema
+from .schemas import JargonAnalysis # Added
+from ..prompt_utils import get_task_instruction # Modified import
 
 
 class JargonAgent(AnalysisAgent):
-    """Agent for identifying and explaining technical terms in Greek"""
+    """Jargon identification with structured outputs""" # Description updated
     
     @classmethod
     def create(cls, grok_client: Any) -> 'JargonAgent':
         """Factory method to create a configured JargonAgent"""
         config = AgentConfig(
             name="JargonAgent",
-            description="Identifies technical terms and provides Greek explanations",
-            default_model=ModelType.GROK_3_MINI,  # Only top-level agent using mini
+            description="Identifies technical terms with structured output", # Description updated
+            default_model=ModelType.GROK_3_MINI,
             complexity=ComplexityLevel.SIMPLE,
-            supports_streaming=True,
+            supports_streaming=True, # As per guide example
             max_retries=3,
             timeout_seconds=60
         )
@@ -25,7 +26,8 @@ class JargonAgent(AnalysisAgent):
             config=config,
             grok_client=grok_client,
             prompt_builder=cls._build_jargon_prompt,
-            schema_builder=get_jargon_response_schema
+            response_model=JargonAnalysis, # Added
+            schema_builder=None # Explicitly set to None as response_model is used
         )
     
     def _build_search_params(self, context: Dict[str, Any]) -> Optional[Dict]:
@@ -42,14 +44,20 @@ class JargonAgent(AnalysisAgent):
     
     @staticmethod
     def _build_jargon_prompt(context: Dict[str, Any]) -> str:
-        """Build optimized prompt for jargon extraction"""
-        # For grok-3-mini, use a concise prompt without redundant instructions
-        # The full article text is passed via the user message in base_agent
-        return """Identify technical terms, organizations, and historical references that need explanation.
-Provide brief explanations (1-2 sentences) in GREEK for each term."""
-    
-    async def _call_grok(self, prompt: str, schema: Dict, model: ModelType,
-                        search_params: Optional[Dict], context: Dict) -> Dict:
-        """Call Grok API for jargon analysis"""
-        # Let the base class handle the API call
-        return await super()._call_grok(prompt, schema, model, search_params, context)
+        """Build prompt using centralized utilities""" # Docstring updated
+        article_content = context.get('article_text', '')
+        article_url = context.get('article_url', '')
+        
+        # Use centralized prompt
+        base_prompt = get_task_instruction('jargon', article_content, article_url)
+        
+        # Add structured output guidance
+        enhanced_prompt = f"""{base_prompt}
+
+IMPORTANT: Identify technical terms, organizations, and concepts that need explanation.
+Focus on terms that a general Greek audience might not understand.
+Provide clear, concise explanations in simple Greek."""
+        
+        return enhanced_prompt
+
+    # _call_grok method is removed as the base class will handle it via _call_grok_structured or _call_grok_legacy

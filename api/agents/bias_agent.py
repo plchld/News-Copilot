@@ -2,109 +2,79 @@
 
 from typing import Dict, Any, Optional
 from .base_agent import AnalysisAgent, AgentConfig, ModelType, ComplexityLevel
+from .schemas import BiasAnalysis, PoliticalPosition # Added BiasIndicator implicitly used via BiasAnalysis
+from ..prompt_utils import get_task_instruction # Added
 
 
 class BiasAnalysisAgent(AnalysisAgent):
-    """Agent for analyzing political bias and language framing"""
+    """Political bias analysis with structured outputs""" # Updated description
     
     @classmethod
     def create(cls, grok_client: Any) -> 'BiasAnalysisAgent':
         """Factory method to create a configured BiasAnalysisAgent"""
         config = AgentConfig(
             name="BiasAnalysisAgent",
-            description="Analyzes political bias, tone, and framing",
-            default_model=ModelType.GROK_3,
-            complexity=ComplexityLevel.HIGH,
-            supports_streaming=True,
-            timeout_seconds=120
+            description="Analyzes political bias with structured output", # Updated description
+            default_model=ModelType.GROK_3, # As per guide
+            complexity=ComplexityLevel.COMPLEX, # As per guide
+            supports_streaming=False, # As per guide example for BiasAnalysisAgent
+            max_retries=2, # As per guide example
+            timeout_seconds=120 # As per guide example
         )
         
         return cls(
             config=config,
             grok_client=grok_client,
             prompt_builder=cls._build_bias_prompt,
-            schema_builder=lambda: BIAS_ANALYSIS_SCHEMA
+            response_model=BiasAnalysis, # Added
+            schema_builder=None # Explicitly set to None
         )
     
     @staticmethod
     def _build_bias_prompt(context: Dict[str, Any]) -> str:
-        """Build optimized prompt for bias analysis"""
-        # The full article text is passed via the user message in base_agent
-        return """Analyze political bias, emotional tone, and presentation in the article.
-Compare with other sources on the same topic.
+        """Build comprehensive bias analysis prompt with structured output guidance."""
+        article_content = context.get('article_text', '')
+        article_url = context.get('article_url', '')
 
-Place on Greek political spectrum:
-Economic: Αριστερά/Κεντροαριστερά/Κέντρο/Κεντροδεξιά/Δεξιά
-Social: Προοδευτική/Φιλελεύθερη/Μετριοπαθής/Συντηρητική
+        base_prompt = get_task_instruction('bias', article_content, article_url)
+        
+        # Dynamically create the list of valid PoliticalPosition string values for the prompt
+        valid_positions = ", ".join([f"'{p.value}'" for p in PoliticalPosition])
 
-ALL analysis and justifications must be in GREEK."""
+        # Guidance for BiasAnalysis schema:
+        # political_leaning: PoliticalPosition
+        # economic_position: str
+        # bias_indicators: List[BiasIndicator] (min_items=1, max_items=10)
+        #   BiasIndicator: indicator, example, impact
+        # missing_perspectives: List[str]
+        # objectivity_score: int (ge=1, le=10)
+        # reasoning: str (min_length=200)
+
+        enhanced_prompt = f"""{base_prompt}
+
+IMPORTANT: Structure your response according to the 'BiasAnalysis' schema.
+Analyze the provided article for political bias, economic positioning, specific bias indicators, missing perspectives, and overall objectivity.
+
+Provide the following information:
+- political_leaning: Determine the article's political leaning on the Greek political spectrum. Choose from: {valid_positions}.
+- economic_position: Describe the economic ideology or position reflected in the article (e.g., neoliberal, social democratic, Keynesian, etc.).
+- bias_indicators: Identify 1-10 specific bias indicators. For each indicator:
+    - indicator: Name the type of bias (e.g., "Loaded Language", "Selective Omission", "Source Bias").
+    - example: Provide a direct quote or specific example from the article.
+    - impact: Explain how this indicator affects the article's objectivity.
+- missing_perspectives: List viewpoints or perspectives that are notably absent from the article, which, if included, would provide a more balanced view.
+- objectivity_score: Rate the article's objectivity on a scale of 1 to 10 (1 being highly biased, 10 being perfectly objective).
+- reasoning: Provide a detailed reasoning (min 200 characters) for your overall assessment, explaining how you arrived at the political leaning, economic position, and objectivity score based on the identified indicators and missing perspectives.
+
+CRITICAL REQUIREMENTS:
+- All analysis, descriptions, and reasoning MUST be in GREEK.
+- Ensure the reasoning is comprehensive and clearly links the evidence (bias indicators, missing perspectives) to the conclusions (leaning, score).
+"""
+        return enhanced_prompt
     
     def _build_search_params(self, context: Dict[str, Any]) -> Optional[Dict]:
         """Build search parameters for bias analysis - bias analysis doesn't need live search"""
         # Bias analysis should be based solely on article content, not external sources
-        # We don't need live search to determine if something is biased
         return None
 
-BIAS_ANALYSIS_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "political_spectrum_analysis_greek": {
-            "type": "object",
-            "properties": {
-                "economic_axis_placement": {
-                    "type": "string",
-                    "enum": ["Αριστερά", "Κεντροαριστερά", "Κέντρο", "Κεντροδεξιά", "Δεξιά", "Ουδέτερο", "Άγνωστο/Δεν είναι σαφές"]
-                },
-                "economic_axis_justification": {"type": "string"},
-                "social_axis_placement": {
-                    "type": "string",
-                    "enum": ["Προοδευτική", "Φιλελεύθερη", "Μετριοπαθής", "Συντηρητική", "Άγνωστο/Δεν είναι σαφές"]
-                },
-                "social_axis_justification": {"type": "string"},
-                "overall_confidence": {
-                    "type": "string",
-                    "enum": ["Υψηλή", "Μέτρια", "Χαμηλή"]
-                }
-            },
-            "required": ["economic_axis_placement", "economic_axis_justification", 
-                        "social_axis_placement", "social_axis_justification", "overall_confidence"]
-        },
-        "language_and_framing_analysis": {
-            "type": "object",
-            "properties": {
-                "emotionally_charged_terms": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "term": {"type": "string"},
-                            "explanation": {"type": "string"}
-                        },
-                        "required": ["term", "explanation"]
-                    }
-                },
-                "identified_framing_techniques": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "technique_name": {"type": "string"},
-                            "example_from_article": {"type": "string"}
-                        },
-                        "required": ["technique_name", "example_from_article"]
-                    }
-                },
-                "detected_tone": {
-                    "type": "string",
-                    "enum": ["θετικός", "αρνητικός", "ουδέτερος", "μικτός", "άγνωστος"]
-                },
-                "missing_perspectives_summary": {"type": "string"}
-            },
-            "required": ["emotionally_charged_terms", "identified_framing_techniques", 
-                        "detected_tone", "missing_perspectives_summary"]
-        },
-        "comparison": {"type": "string"},
-        "recommendations": {"type": "string"}
-    },
-    "required": ["political_spectrum_analysis_greek", "language_and_framing_analysis"]
-}
+# Removed BIAS_ANALYSIS_SCHEMA global variable

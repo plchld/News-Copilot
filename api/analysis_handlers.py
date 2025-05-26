@@ -231,206 +231,169 @@ class AnalysisHandler:
         print(f"[get_augmentations_stream] All tasks complete. Sending final results.", flush=True)
         yield self.stream_event("progress", {"status": "Analysis complete!"})
         yield self.stream_event("final_result", final_results)
-    
-    def get_deep_analysis(self, article_url: str, analysis_type: str, search_params: Dict[str, Any]) -> Dict[str, Any]:
+
+    async def get_deep_analysis(self, article_url: str, analysis_type: str, search_params: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Perform deep analysis using Grok API with specific prompts for each analysis type.
+        Perform deep analysis using the OptimizedAgentCoordinator for structured outputs.
         
         Args:
             article_url: URL of the article to analyze
-            analysis_type: Type of analysis ('fact-check', 'bias', 'timeline', 'expert')
-            search_params: Search parameters for the API
+            analysis_type: Type of analysis ('fact-check', 'bias', 'timeline', 'expert', 'x-pulse')
+            search_params: Client-provided search parameters to be passed in context (optional).
             
         Returns:
-            Dictionary with analysis results and citations
+            Dictionary with analysis results. Citations are currently returned as an empty list.
         """
-        print(f"[get_deep_analysis] Starting {analysis_type} analysis for URL: {article_url}", flush=True)
+        print(f"[get_deep_analysis] Starting AGENT-BASED {analysis_type} analysis for URL: {article_url}", flush=True)
         
         # Fetch article text
-        article_text = fetch_text(article_url)
-        print(f"[get_deep_analysis] Fetched article_text (first 500 chars): {article_text[:500]}", flush=True)
-        
-        # Map analysis types to instruction generators and schemas
-        instruction_map = {
-            'fact-check': (get_fact_check_task_instruction, get_fact_check_schema),
-            'bias': (get_bias_analysis_task_instruction, get_bias_analysis_schema),
-            'timeline': (get_timeline_task_instruction, get_timeline_schema),
-            'expert': (get_expert_opinions_task_instruction, get_expert_opinions_schema),
-            'x-pulse': (None, get_x_pulse_analysis_schema)  # Special handling below
+        try:
+            article_text = fetch_text(article_url)
+            if not article_text:
+                print(f"[get_deep_analysis] Error: Fetched empty article text for {article_url}", flush=True)
+                # Consider raising an error or returning a specific error structure
+                raise ValueError("Failed to fetch article content or content is empty.")
+            print(f"[get_deep_analysis] Fetched article_text (length {len(article_text)})", flush=True)
+        except Exception as e:
+            print(f"[get_deep_analysis] Error fetching article text for {article_url}: {e}", flush=True)
+            # Propagate error or return specific error structure
+            raise # Or return an error dict
+
+        # Import AnalysisType enum from the coordinator's module
+        try:
+            from .agents.optimized_coordinator import AnalysisType
+        except ImportError:
+            from agents.optimized_coordinator import AnalysisType # Fallback for direct execution
+
+        # Map client-facing analysis_type string to AnalysisType enum
+        analysis_type_map = {
+            'fact-check': AnalysisType.FACT_CHECK,
+            'bias': AnalysisType.BIAS_ANALYSIS,
+            'timeline': AnalysisType.TIMELINE,
+            'expert': AnalysisType.EXPERT_OPINIONS,
+            'x-pulse': AnalysisType.X_PULSE
         }
         
-        if analysis_type not in instruction_map:
+        agent_type_enum = analysis_type_map.get(analysis_type)
+        
+        if agent_type_enum is None:
+            print(f"[get_deep_analysis] Error: Unknown analysis type '{analysis_type}'", flush=True)
             raise ValueError(f"Unknown analysis type: {analysis_type}")
-        
-        # Handle X Pulse specially - it needs topic extraction first
-        if analysis_type == 'x-pulse':
-            # First, extract topics and keywords
-            topic_instruction = get_article_topic_extraction_instruction(article_text)
-            topic_schema = get_article_topic_extraction_schema()
-            topic_prompt = build_prompt(topic_instruction, topic_schema)
-            
-            # Use thinking model for topic extraction
-            # Note: Grok doesn't support response_format parameter
-            topic_completion = self.grok_client.create_thinking_completion(
-                prompt=topic_prompt,
-                reasoning_effort="low",
-                temperature=0.3
-            )
-            
-            topic_data = json.loads(topic_completion.choices[0].message.content)
-            main_topic = topic_data.get('main_topic', '')
-            keywords = topic_data.get('x_search_keywords', [])
-            
-            print(f"[get_deep_analysis] X-Pulse topic extraction: topic='{main_topic}', keywords={keywords}", flush=True)
-            
-            # Now create the X Pulse instruction with extracted data
-            task_instruction = get_x_pulse_analysis_task_instruction(article_text, main_topic, keywords)
-            schema = get_x_pulse_analysis_schema()
-            prompt_content = build_prompt(task_instruction, schema)
-        else:
-            # Regular analysis types
-            instruction_fn, schema_fn = instruction_map[analysis_type]
-            
-            # Generate task instruction
-            task_instruction = instruction_fn(article_text)
-            
-            # Build complete prompt with hardened template
-            schema = schema_fn()
-            prompt_content = build_prompt(task_instruction, schema)
-        
-        # Import search params builder and preset functions
-        from .search_params_builder import (
-            build_search_params, 
-            get_search_params_for_x_pulse,
-            get_search_params_for_fact_check,
-            get_search_params_for_bias_analysis,
-            get_search_params_for_timeline,
-            get_search_params_for_expert_opinions
-        )
-        from urllib.parse import urlparse
-        
-        # Extract domain from article URL to exclude it from search results
-        parsed_url = urlparse(article_url)
-        article_domain = parsed_url.netloc.replace('www.', '')  # Remove www prefix if present
-        print(f"[get_deep_analysis] Excluding current article domain from search: {article_domain}", flush=True)
-        
-        # Build search parameters using the builder
-        # If searchParams provided by client, use them, otherwise use defaults
-        if analysis_type == 'x-pulse':
-            # Use specialized X Pulse search params
-            search_params_dict = get_search_params_for_x_pulse(
-                mode="on",
-                keywords=keywords if 'keywords' in locals() else None,
-                article_domain=article_domain
-            )
-        elif search_params:
-            # Extract relevant fields from client searchParams
-            # Merge excluded websites with article domain
-            excluded_map = search_params.get("excluded_websites_map", {})
-            if not excluded_map:
-                excluded_map = {"web": [], "news": []}
-            else:
-                # Make a copy to avoid modifying the original
-                excluded_map = dict(excluded_map)
-                if "web" not in excluded_map:
-                    excluded_map["web"] = []
-                if "news" not in excluded_map:
-                    excluded_map["news"] = []
-            
-            # Add article domain to both web and news exclusions
-            if article_domain not in excluded_map["web"]:
-                excluded_map["web"].append(article_domain)
-            if article_domain not in excluded_map["news"]:
-                excluded_map["news"].append(article_domain)
-            
-            search_params_dict = build_search_params(
-                mode=search_params.get("mode", "on"),
-                sources=search_params.get("sources"),
-                country=search_params.get("country", "GR"),
-                language=search_params.get("language", "el"),
-                include_english=search_params.get("include_english", False),
-                from_date=search_params.get("from_date"),
-                to_date=search_params.get("to_date"),
-                max_results=search_params.get("max_results", 20),
-                safe_search=search_params.get("safe_search", True),
-                excluded_websites_map=excluded_map,
-                x_handles_for_x_source=search_params.get("x_handles_for_x_source"),
-                rss_links_for_rss_source=search_params.get("rss_links_for_rss_source")
-            )
-        else:
-            # Use preset search params based on analysis type
-            preset_map = {
-                'fact-check': get_search_params_for_fact_check,
-                'bias': get_search_params_for_bias_analysis,
-                'timeline': get_search_params_for_timeline,
-                'expert': get_search_params_for_expert_opinions
-            }
-            
-            if analysis_type in preset_map:
-                # Use the appropriate preset function with article domain exclusion
-                search_params_dict = preset_map[analysis_type](mode="on", article_domain=article_domain)
-            else:
-                # Fallback to default search params with article domain excluded
-                search_params_dict = self.grok_client.get_default_search_params()
-                
-                # Add excluded websites for the current article domain
-                if 'sources' in search_params_dict:
-                    for source in search_params_dict['sources']:
-                        if source.get('type') in ['web', 'news']:
-                            if 'excluded_websites' not in source:
-                                source['excluded_websites'] = []
-                            if article_domain not in source['excluded_websites']:
-                                source['excluded_websites'].append(article_domain)
-        
-        # Make API call with the schema already included in prompt
-        # Note: Grok doesn't support response_format parameter
-        completion = self.grok_client.create_completion(
-            prompt=prompt_content,
-            search_params=search_params_dict,
-            stream=False
-        )
-        
-        if analysis_type == 'fact-check':
-            print(f"[get_deep_analysis] RAW Grok 'fact-check' response content: {completion.choices[0].message.content}", flush=True)
 
-        print(f"[get_deep_analysis] Grok {analysis_type} call successful.", flush=True)
+        # Prepare context for the agent coordinator
+        # User tier and ID can be configurable or based on actual user session if available
+        context = {
+            'article_url': article_url,
+            'article_text': article_text,
+            'user_tier': 'premium', # Assuming deep analysis implies premium features
+            'user_id': 'deep_analysis_user', # Generic user ID for this handler
+            'session_id': f"deep_analysis_{analysis_type}_{time.time()}", # Unique session ID
+            'search_params_override': search_params if search_params else None # Pass client search_params
+        }
         
-        # Parse response
-        response_data = json.loads(completion.choices[0].message.content)
-        citations = self.grok_client.extract_citations(completion)
+        print(f"[get_deep_analysis] Calling coordinator.analyze_on_demand for {agent_type_enum.name} with context.", flush=True)
         
-        # Special validation for expert analysis
-        if analysis_type == 'expert':
-            # Import citation processor
-            from .citation_processor import validate_citations
-            
-            # Validate that experts mentioned actually appear in citations
-            is_valid, issues = validate_citations(response_data, citations)
-            if not is_valid:
-                print(f"[get_deep_analysis] Expert validation issues: {issues}", flush=True)
-                
-            # Filter out experts without matching citations
-            if 'experts' in response_data:
-                validated_experts = []
-                for expert in response_data['experts']:
-                    # Check if expert name or opinion appears in any citation content
-                    expert_found = False
-                    expert_name = expert.get('name', '').lower()
-                    
-                    # For now, include all experts but log if they're not in citations
-                    if not expert_found and expert_name:
-                        print(f"[get_deep_analysis] Warning: Expert '{expert_name}' not found in citations", flush=True)
-                    
-                    validated_experts.append(expert)
-                
-                response_data['experts'] = validated_experts
+        try:
+            agent_result = await self.coordinator.analyze_on_demand(agent_type_enum, context)
+        except Exception as e:
+            print(f"[get_deep_analysis] Error during coordinator.analyze_on_demand for {agent_type_enum.name}: {e}", flush=True)
+            raise 
+
+        if not agent_result.success:
+            error_message = agent_result.error or "Unknown error from agent."
+            print(f"[get_deep_analysis] Agent {agent_type_enum.name} execution failed: {error_message}", flush=True)
+            raise Exception(f"Analysis failed for {analysis_type}: {error_message}")
+
+        print(f"[get_deep_analysis] Agent {agent_type_enum.name} execution successful.", flush=True)
+        
+        analysis_data = agent_result.data
+
+        # Apply transformations for specific analysis types to match UI expectations
+        if agent_result.success and analysis_data:
+            if analysis_type == 'fact-check':
+                analysis_data = transform_fact_check_for_ui(analysis_data)
+                print(f"[get_deep_analysis] Applied 'fact-check' UI transformation.", flush=True)
+            elif analysis_type == 'bias':
+                analysis_data = transform_bias_for_ui(analysis_data)
+                print(f"[get_deep_analysis] Applied 'bias' UI transformation.", flush=True)
         
         return {
-            'analysis': response_data,
-            'citations': citations,
+            'analysis': analysis_data,
+            'citations': [],  # Citations to be handled separately or by agents directly if needed
             'analysis_type': analysis_type
         }
-    
+
+# --- UI Transformation Functions ---
+
+def transform_fact_check_for_ui(agent_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transforms FactCheckAnalysis data (from Pydantic model_dump()) to the UI expected format.
+    """
+    ui_claims = []
+    if agent_data.get("claims"):
+        for claim_data in agent_data["claims"]:
+            verdict_str = claim_data.get("verdict", "")
+            # Mapping based on api.agents.schemas.Verdict enum string values
+            verified = verdict_str in ["Αληθές", "Κυρίως Αληθές"]
+            
+            ui_claim = {
+                "statement": claim_data.get("claim"),
+                "verified": verified,
+                "explanation": claim_data.get("explanation"),
+                "sources": [source.get("url") for source in claim_data.get("sources", []) if source.get("url")]
+            }
+            ui_claims.append(ui_claim)
+
+    return {
+        "overall_credibility": agent_data.get("overall_credibility"),
+        "claims": ui_claims,
+        "red_flags": agent_data.get("red_flags", []),
+        "missing_context": agent_data.get("missing_context"),
+        "source_quality": None # Not available in FactCheckAnalysis schema
+    }
+
+def transform_bias_for_ui(agent_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transforms BiasAnalysis data (from Pydantic model_dump()) to the UI expected format.
+    """
+    objectivity_score = agent_data.get("objectivity_score")
+    confidence = None
+    if isinstance(objectivity_score, (int, float)):
+        if 8 <= objectivity_score <= 10:
+            confidence = "High"
+        elif 4 <= objectivity_score <= 7:
+            confidence = "Medium"
+        elif 1 <= objectivity_score <= 3:
+            confidence = "Low"
+
+    bias_indicators = agent_data.get("bias_indicators", [])
+    framing_elements = [ind.get("indicator") for ind in bias_indicators if ind.get("indicator")]
+    loaded_words_elements = [ind.get("example") for ind in bias_indicators if ind.get("example")]
+
+    missing_perspectives_list = agent_data.get("missing_perspectives", [])
+    missing_perspectives_str = ", ".join(missing_perspectives_list) if missing_perspectives_list else None
+
+    return {
+        "political_lean": agent_data.get("political_leaning"), # Assuming enum value is string
+        "emotional_tone": None, # Not directly available in BiasAnalysis schema
+        "confidence": confidence,
+        "language_analysis": {
+            "framing": ", ".join(framing_elements) if framing_elements else None,
+            "loaded_words": loaded_words_elements,
+            "missing_perspectives": missing_perspectives_str
+        },
+        "comparison": None, # Not available in BiasAnalysis schema
+        "recommendations": None, # Not available in BiasAnalysis schema
+        # Including objectivity_score and reasoning directly if UI can use them,
+        # or they can be omitted if only the transformed fields above are needed.
+        "objectivity_score_raw": objectivity_score, 
+        "reasoning_raw": agent_data.get("reasoning")
+    }
+
+    # This method is now obsolete as schemas are defined by Pydantic models within agents
+    # and prompt building is handled by agents.
+    # def _get_analysis_schemas(self) -> Dict[str, Dict[str, Any]]:
+    # Keeping it commented out for now, to be deleted in a subsequent step as per instructions.
     def _get_analysis_schemas(self) -> Dict[str, Dict[str, Any]]:
         """Get JSON schemas for each analysis type"""
         return {
