@@ -2,6 +2,7 @@
 
 from typing import Dict, Any, Optional
 from .base_agent import AnalysisAgent, AgentConfig, ModelType, ComplexityLevel
+from ..prompt_utils import get_jargon_task_instruction, get_jargon_response_schema
 
 
 class JargonAgent(AnalysisAgent):
@@ -24,23 +25,7 @@ class JargonAgent(AnalysisAgent):
             config=config,
             grok_client=grok_client,
             prompt_builder=cls._build_jargon_prompt,
-            schema_builder=lambda: {
-                "type": "object",
-                "properties": {
-                    "terms": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "term": {"type": "string"},
-                                "explanation": {"type": "string"}
-                            },
-                            "required": ["term", "explanation"]
-                        }
-                    }
-                },
-                "required": ["terms"]
-            }
+            schema_builder=get_jargon_response_schema
         )
     
     def _build_search_params(self, context: Dict[str, Any]) -> Optional[Dict]:

@@ -152,8 +152,8 @@ class ThinkingAnalyzer:
             model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
             extra_body={"reasoning_effort": "low"},  # Quick analysis
-            temperature=0.3,  # Lower temperature for consistent analysis
-            response_format={"type": "json_object"}
+            temperature=0.3  # Lower temperature for consistent analysis
+            # Note: Grok doesn't support response_format parameter
         )
         
         # Extract reasoning content for logging
@@ -178,8 +178,8 @@ class ThinkingAnalyzer:
             model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
             extra_body={"reasoning_effort": "low"},
-            temperature=0.3,
-            response_format={"type": "json_object"}
+            temperature=0.3
+            # Note: Grok doesn't support response_format parameter
         )
         
         return json.loads(response.choices[0].message.content)
@@ -202,8 +202,8 @@ class ThinkingAnalyzer:
             model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
             extra_body={"reasoning_effort": "high"},  # Thorough validation
-            temperature=0.1,  # Very low temperature for consistency
-            response_format={"type": "json_object"}
+            temperature=0.1  # Very low temperature for consistency
+            # Note: Grok doesn't support response_format parameter
         )
         
         result = json.loads(response.choices[0].message.content)
@@ -222,8 +222,8 @@ class ThinkingAnalyzer:
             model=self.thinking_model,
             messages=[{"role": "user", "content": prompt}],
             extra_body={"reasoning_effort": "low"},
-            temperature=0.2,
-            response_format={"type": "json_object"}
+            temperature=0.2
+            # Note: Grok doesn't support response_format parameter
         )
         
         result = json.loads(response.choices[0].message.content)

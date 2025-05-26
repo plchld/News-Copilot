@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 class ModelType(Enum):
     """Available Grok models (non-fast versions for cost efficiency)"""
     GROK_3_MINI = "grok-3-mini"
-    GROK_3 = "grok-3"
+    GROK_3 = "grok-3-latest"
+    GROK_3_FAST = "grok-3-fast"
 
 
 class ComplexityLevel(Enum):
@@ -181,7 +182,7 @@ class BaseAgent(ABC, AsyncCommunicationMixin):
         if user_tier in ['premium', 'admin'] and model == ModelType.GROK_3_MINI:
             # Upgrade to grok-3 for premium users on complex tasks
             if self.config.complexity in [ComplexityLevel.HIGH, ComplexityLevel.VERY_HIGH]:
-                model = ModelType.GROK_3
+                model = ModelType.GROK_3_FAST
                 upgrade_reasons.append(f"user_tier={user_tier} + complexity={self.config.complexity.name}")
         
         # Check article length (very long articles need better models)
@@ -522,9 +523,24 @@ class AnalysisAgent(BaseAgent):
                 try:
                     result_data = json.loads(result_data)
                 except json.JSONDecodeError:
-                    # If JSON parsing fails, wrap the string response in a dict
-                    self.logger.warning(f"Failed to parse JSON response, wrapping string content")
-                    result_data = {"content": result_data}
+                    # If JSON parsing fails, try to extract JSON from the response
+                    self.logger.warning(f"Failed to parse JSON response, attempting extraction")
+                    
+                    # Try to find JSON in the response
+                    import re
+                    json_match = re.search(r'\{.*\}', result_data, re.DOTALL)
+                    if json_match:
+                        try:
+                            result_data = json.loads(json_match.group())
+                            self.logger.info(f"Successfully extracted JSON from response")
+                        except json.JSONDecodeError:
+                            # Still can't parse, create a minimal valid response
+                            self.logger.error(f"Could not extract valid JSON, creating fallback response")
+                            result_data = self._create_fallback_response(result_data)
+                    else:
+                        # No JSON found, create fallback
+                        self.logger.error(f"No JSON structure found in response, creating fallback")
+                        result_data = self._create_fallback_response(result_data)
             
             tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
             
@@ -541,6 +557,39 @@ class AnalysisAgent(BaseAgent):
         """Build search parameters if needed for this agent"""
         # Override in subclasses that need search
         return None
+    
+    def _create_fallback_response(self, raw_content: str) -> Dict[str, Any]:
+        """Create a fallback response when JSON parsing fails"""
+        # Create agent-specific fallback based on agent name
+        agent_name = self.config.name.lower()
+        
+        if 'jargon' in agent_name:
+            return {
+                "simplified_terms": [
+                    {
+                        "term": "Technical content",
+                        "explanation": "The response could not be properly parsed. Please try again.",
+                        "context": raw_content[:200] + "..." if len(raw_content) > 200 else raw_content
+                    }
+                ]
+            }
+        elif 'viewpoints' in agent_name:
+            return {
+                "perspectives": [
+                    {
+                        "stakeholder": "Analysis Error",
+                        "viewpoint": "The response could not be properly parsed. Please try again.",
+                        "reasoning": raw_content[:200] + "..." if len(raw_content) > 200 else raw_content
+                    }
+                ]
+            }
+        else:
+            # Generic fallback
+            return {
+                "content": raw_content,
+                "error": "Response parsing failed",
+                "message": "The AI response could not be properly formatted. Please try again."
+            }
 
 
 class NestedAgent(BaseAgent):

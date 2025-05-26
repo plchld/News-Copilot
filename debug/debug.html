@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News-Copilot Agent Debugger</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+        .debug-form {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            font-weight: normal;
+            margin-bottom: 0;
+        }
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 5px;
+        }
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+        .results {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .success {
+            background: #27ae60;
+            color: white;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .debug-report {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        .result-item {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .result-item h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+        .result-data {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .agent-status {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .status-success {
+            background: #27ae60;
+            color: white;
+        }
+        .status-failed {
+            background: #e74c3c;
+            color: white;
+        }
+        .timing-info {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 News-Copilot Agent Debugger</h1>
+        
+        <div class="debug-form">
+            <h2>Debug Configuration</h2>
+            
+            <div class="form-group">
+                <label for="article-url">Article URL:</label>
+                <input type="text" id="article-url" placeholder="https://www.kathimerini.gr/..." value="https://www.kathimerini.gr/politics/foreign-policy/563630194/synetairoi-me-toyrkia-ypo-oroys/">
+            </div>
+            
+            <div class="form-group">
+                <label>Select Agent(s):</label>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" name="agent" value="viewpoints" checked>
+                        Alternative Viewpoints
+                    </label>
+                    <label>
+                        <input type="checkbox" name="agent" value="jargon">
+                        Jargon Explainer
+                    </label>
+                    <label>
+                        <input type="checkbox" name="agent" value="fact_check">
+                        Fact Checker
+                    </label>
+                    <label>
+                        <input type="checkbox" name="agent" value="bias">
+                        Bias Analyzer
+                    </label>
+                    <label>
+                        <input type="checkbox" name="agent" value="timeline">
+                        Timeline Builder
+                    </label>
+                    <label>
+                        <input type="checkbox" name="agent" value="expert">
+                        Expert Opinions
+                    </label>
+                    <label>
+                        <input type="checkbox" name="agent" value="x_pulse">
+                        X Pulse (Complex)
+                    </label>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="debug-level">Debug Level:</label>
+                <select id="debug-level">
+                    <option value="minimal">Minimal - Basic success/failure</option>
+                    <option value="normal">Normal - Standard debugging info</option>
+                    <option value="verbose" selected>Verbose - Detailed execution traces</option>
+                    <option value="extreme">Extreme - Everything including API payloads</option>
+                </select>
+            </div>
+            
+            <button onclick="runDebug()" id="debug-btn">🐛 Run Debug Analysis</button>
+            <button onclick="selectAll()">Select All Agents</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+        
+        <div id="results" class="results" style="display: none;">
+            <!-- Results will be inserted here -->
+        </div>
+    </div>
+
+    <script>
+        let currentRequest = null;
+
+        function selectAll() {
+            document.querySelectorAll('input[name="agent"]').forEach(cb => cb.checked = true);
+        }
+
+        function clearResults() {
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function runDebug() {
+            const articleUrl = document.getElementById('article-url').value;
+            const debugLevel = document.getElementById('debug-level').value;
+            const selectedAgents = Array.from(document.querySelectorAll('input[name="agent"]:checked'))
+                .map(cb => cb.value);
+
+            if (!articleUrl) {
+                alert('Please enter an article URL');
+                return;
+            }
+
+            if (selectedAgents.length === 0) {
+                alert('Please select at least one agent');
+                return;
+            }
+
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.style.display = 'block';
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Running debug analysis...</div>';
+
+            const debugBtn = document.getElementById('debug-btn');
+            debugBtn.disabled = true;
+
+            try {
+                let response;
+                
+                if (selectedAgents.length === 1) {
+                    // Single agent debug
+                    response = await fetch('/api/debug/agent', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            url: articleUrl,
+                            agent: selectedAgents[0],
+                            debug_level: debugLevel
+                        })
+                    });
+                } else {
+                    // Batch debug
+                    response = await fetch('/api/debug/batch', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            url: articleUrl,
+                            agents: selectedAgents,
+                            debug_level: debugLevel
+                        })
+                    });
+                }
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Request failed');
+                }
+
+                displayResults(data, selectedAgents);
+
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                debugBtn.disabled = false;
+            }
+        }
+
+        function displayResults(data, selectedAgents) {
+            const resultsDiv = document.getElementById('results');
+            let html = '';
+
+            if (data.success) {
+                html += '<div class="success">✅ Debug analysis completed successfully</div>';
+            } else {
+                html += `<div class="error">❌ Debug analysis failed: ${data.error}</div>`;
+            }
+
+            // Display debug report
+            if (data.debug_report) {
+                html += '<h3>Debug Report</h3>';
+                html += `<div class="debug-report">${escapeHtml(data.debug_report)}</div>`;
+            }
+
+            // Display individual results for batch
+            if (data.results) {
+                html += '<h3>Agent Results</h3>';
+                for (const [agentType, result] of Object.entries(data.results)) {
+                    const statusClass = result.success ? 'status-success' : 'status-failed';
+                    const statusText = result.success ? 'SUCCESS' : 'FAILED';
+                    
+                    html += '<div class="result-item">';
+                    html += `<h3>${agentType.toUpperCase()} <span class="agent-status ${statusClass}">${statusText}</span></h3>`;
+                    
+                    if (result.execution_time_ms) {
+                        html += `<div class="timing-info">⏱️ Execution time: ${result.execution_time_ms}ms | Model: ${result.model_used || 'unknown'} | Tokens: ${result.tokens_used || 0}</div>`;
+                    }
+                    
+                    if (result.error) {
+                        html += `<div class="error">Error: ${result.error}</div>`;
+                    }
+                    
+                    if (result.data) {
+                        html += '<div class="result-data">' + JSON.stringify(result.data, null, 2) + '</div>';
+                    }
+                    
+                    html += '</div>';
+                }
+            }
+
+            // Display single agent result
+            if (data.result && selectedAgents.length === 1) {
+                html += '<h3>Agent Result</h3>';
+                html += '<div class="result-item">';
+                html += `<div class="timing-info">⏱️ Execution time: ${data.execution_time_ms}ms | Model: ${data.model_used || 'unknown'} | Tokens: ${data.tokens_used || 0}</div>`;
+                html += '<div class="result-data">' + JSON.stringify(data.result, null, 2) + '</div>';
+                html += '</div>';
+            }
+
+            resultsDiv.innerHTML = html;
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('article-url').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                runDebug();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -71,10 +71,12 @@ class AnalysisHandler:
             # Fallback for direct execution
             from agents.optimized_coordinator import OptimizedAgentCoordinator as AgentCoordinator, OptimizedCoordinatorConfig as CoordinatorConfig
         config = CoordinatorConfig(
-            max_parallel_agents=4,  # Allow concurrent execution
-            enable_streaming=False,  # We handle streaming at this level
-            timeout_seconds=120,
-            retry_failed_agents=True
+            core_parallel_limit=2,  # Jargon + viewpoints
+            core_timeout_seconds=150,  # Increased for viewpoints live search
+            on_demand_timeout_seconds=120,
+            cache_ttl_minutes=60,
+            enable_result_caching=True,
+            enable_context_caching=True
         )
         self.coordinator = AgentCoordinator(self.grok_client, config)
     
@@ -85,10 +87,9 @@ class AnalysisHandler:
         except ImportError:
             from agents.optimized_coordinator import AnalysisType
         
-        return await self.coordinator.analyze_article(
+        return await self.coordinator.analyze_core(
             article_url=article_url,
             article_text=article_text,
-            analysis_types=[AnalysisType.JARGON, AnalysisType.VIEWPOINTS],
             user_context=context
         )
         
@@ -166,10 +167,9 @@ class AnalysisHandler:
             yield self.stream_event("progress", {"status": "🧠 Analyzing terms & finding viewpoints in parallel..."})
             
             # Now use the agent coordinator directly (async is fixed)
-            results = await self.coordinator.analyze_article(
+            results = await self.coordinator.analyze_core(
                 article_url=article_url,
                 article_text=article_text,
-                analysis_types=[AnalysisType.JARGON, AnalysisType.VIEWPOINTS],
                 user_context=context
             )
             
@@ -178,41 +178,47 @@ class AnalysisHandler:
             # Extract results and format for frontend compatibility
             final_results = {"jargon": None, "jargon_citations": [], "viewpoints": None, "viewpoints_citations": []}
             
+            # Check if core analysis was successful
+            if not results.get('success'):
+                error_msg = results.get('error', 'Core analysis failed')
+                print(f"[get_augmentations_stream] Core analysis failed: {error_msg}", flush=True)
+                yield self.stream_event("error", {"message": "Error during analysis."})
+                return
+            
+            # Process results from the new structure
+            core_results = results.get('results', {})
+            errors = results.get('errors', {})
+            
             # Process jargon results
-            if AnalysisType.JARGON in results and results[AnalysisType.JARGON].success:
-                jargon_result = results[AnalysisType.JARGON]
-                final_results["jargon"] = jargon_result.data
+            if core_results.get('jargon'):
+                final_results["jargon"] = core_results['jargon']
                 final_results["jargon_citations"] = []  # Agent system handles citations differently
-                print(f"[get_augmentations_stream] Jargon analysis successful in {jargon_result.execution_time_ms}ms", flush=True)
+                print(f"[get_augmentations_stream] Jargon analysis successful", flush=True)
             else:
-                error = results.get(AnalysisType.JARGON, {}).error if AnalysisType.JARGON in results else "Agent not executed"
+                error = errors.get('jargon', 'Jargon analysis failed')
                 print(f"[get_augmentations_stream] Jargon analysis failed: {error}", flush=True)
                 yield self.stream_event("error", {"message": "Error explaining terms."})
                 return
             
             # Process viewpoints results
-            if AnalysisType.VIEWPOINTS in results and results[AnalysisType.VIEWPOINTS].success:
-                viewpoints_result = results[AnalysisType.VIEWPOINTS]
-                final_results["viewpoints"] = viewpoints_result.data
+            if core_results.get('viewpoints'):
+                final_results["viewpoints"] = core_results['viewpoints']
                 final_results["viewpoints_citations"] = []  # Agent system handles citations differently
-                print(f"[get_augmentations_stream] Viewpoints analysis successful in {viewpoints_result.execution_time_ms}ms", flush=True)
+                print(f"[get_augmentations_stream] Viewpoints analysis successful", flush=True)
             else:
-                error = results.get(AnalysisType.VIEWPOINTS, {}).error if AnalysisType.VIEWPOINTS in results else "Agent not executed"
+                error = errors.get('viewpoints', 'Viewpoints analysis failed')
                 print(f"[get_augmentations_stream] Viewpoints analysis failed: {error}", flush=True)
                 yield self.stream_event("error", {"message": "Error finding viewpoints."})
                 return
             
-            # Calculate total performance improvement
-            total_time = max(
-                results.get(AnalysisType.JARGON, {}).execution_time_ms or 0,
-                results.get(AnalysisType.VIEWPOINTS, {}).execution_time_ms or 0
-            )
-            sequential_time = (results.get(AnalysisType.JARGON, {}).execution_time_ms or 0) + \
-                            (results.get(AnalysisType.VIEWPOINTS, {}).execution_time_ms or 0)
+            # Log performance metrics
+            metadata = results.get('metadata', {})
+            execution_time = metadata.get('execution_time_seconds', 0)
+            total_tokens = metadata.get('total_tokens_used', 0)
+            successful_analyses = metadata.get('successful_analyses', 0)
             
-            if sequential_time > 0:
-                speedup = sequential_time / total_time if total_time > 0 else 1
-                print(f"[PERFORMANCE] Concurrent execution speedup: {speedup:.1f}x faster ({sequential_time}ms → {total_time}ms)", flush=True)
+            print(f"[PERFORMANCE] Core analysis completed in {execution_time:.2f}s | "
+                  f"Success: {successful_analyses}/2 | Tokens: {total_tokens}", flush=True)
             
             yield self.stream_event("progress", {"status": "✅ Concurrent analysis complete!"})
             
@@ -264,11 +270,11 @@ class AnalysisHandler:
             topic_prompt = build_prompt(topic_instruction, topic_schema)
             
             # Use thinking model for topic extraction
+            # Note: Grok doesn't support response_format parameter
             topic_completion = self.grok_client.create_thinking_completion(
                 prompt=topic_prompt,
                 reasoning_effort="low",
-                temperature=0.3,
-                response_format={"type": "json_object"}
+                temperature=0.3
             )
             
             topic_data = json.loads(topic_completion.choices[0].message.content)
@@ -377,10 +383,10 @@ class AnalysisHandler:
                                 source['excluded_websites'].append(article_domain)
         
         # Make API call with the schema already included in prompt
+        # Note: Grok doesn't support response_format parameter
         completion = self.grok_client.create_completion(
             prompt=prompt_content,
             search_params=search_params_dict,
-            response_format={"type": "json_object"},
             stream=False
         )
         

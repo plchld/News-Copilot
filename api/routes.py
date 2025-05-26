@@ -222,9 +222,9 @@ def debug_agent():
             'viewpoints': ('VIEWPOINTS', lambda gc: ViewpointsAgent.create(gc)),
             'jargon': ('JARGON', lambda gc: JargonAgent.create(gc)),
             'fact_check': ('FACT_CHECK', lambda gc: FactCheckAgent.create(gc)),
-            'bias': ('BIAS', lambda gc: BiasAgent.create(gc)),
+            'bias': ('BIAS', lambda gc: BiasAnalysisAgent.create(gc)),
             'timeline': ('TIMELINE', lambda gc: TimelineAgent.create(gc)),
-            'expert': ('EXPERT', lambda gc: ExpertAgent.create(gc)),
+            'expert': ('EXPERT', lambda gc: ExpertOpinionsAgent.create(gc)),
             'x_pulse': ('X_PULSE', lambda gc: XPulseAgent.create(gc))
         }
         
@@ -249,9 +249,9 @@ def debug_agent():
         from .agents.viewpoints_agent import ViewpointsAgent
         from .agents.jargon_agent import JargonAgent
         from .agents.fact_check_agent import FactCheckAgent
-        from .agents.bias_agent import BiasAgent
+        from .agents.bias_agent import BiasAnalysisAgent
         from .agents.timeline_agent import TimelineAgent
-        from .agents.expert_agent import ExpertAgent
+        from .agents.expert_agent import ExpertOpinionsAgent
         from .agents.x_pulse_agent import XPulseAgent
         
         # Create agent

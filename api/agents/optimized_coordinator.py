@@ -49,7 +49,7 @@ class OptimizedCoordinatorConfig:
     """Configuration for optimized coordinator"""
     # Core analysis settings
     core_parallel_limit: int = 2  # Only jargon + viewpoints
-    core_timeout_seconds: int = 30
+    core_timeout_seconds: int = 150  # Increased timeout for viewpoints live search
     
     # On-demand settings
     on_demand_timeout_seconds: int = 120
