@@ -63,7 +63,7 @@ Welcome, Beta User! This guide will help you quickly install and start using the
 - iefimerida.gr, newsbeast.gr, cnn.gr, ant1news.gr, newsbomb.gr, newsit.gr
 
 **Εναλλακτικά & Πολιτικά:**
-- efsyn.gr, avgi.gr, documento.gr, liberal.gr, tvxs.gr
+- efsyn.gr, avgi.gr, documentonews.gr, liberal.gr, tvxs.gr
 
 *Δείτε το αρχείο `SUPPORTED_SITES.md` για την πλήρη, ενημερωμένη λίστα και τεχνικές λεπτομέρειες, καθώς και για πληροφορίες σχετικά με το πώς προσδιορίζεται η υποστήριξη.*
 
@@ -490,7 +490,7 @@ All checks must pass before merging to main branch.
 - iefimerida.gr, newsbeast.gr, cnn.gr, ant1news.gr, newsbomb.gr, newsit.gr
 
 **Εναλλακτικά & Πολιτικά:**
-- efsyn.gr, avgi.gr, documento.gr, liberal.gr, tvxs.gr
+- efsyn.gr, avgi.gr, documentonews.gr, liberal.gr, tvxs.gr
 
 *Δείτε `SUPPORTED_SITES.md` για πλήρη λίστα και τεχνικές λεπτομέρειες*
 

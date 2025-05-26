@@ -18,7 +18,7 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://*.cnn.gr/*", "https://*.iefimerida.gr/*", "https://*.tanea.gr/*", "https://*.kathimerini.gr/*", "https://*.protothema.gr/*", "https://*.news247.gr/*", "https://*.newsit.gr/*", "https://*.naftemporiki.gr/*", "https://*.capital.gr/*", "https://*.liberal.gr/*", "https://*.dikaiologitika.gr/*", "https://*.in.gr/*", "https://*.newpost.gr/*", "https://*.efsyn.gr/*", "https://*.newsbeast.gr/*", "https://*.documento.gr/*", "https://*.newsbomb.gr/*", "https://*.tvxs.gr/*", "https://*.pronews.gr/*"],
+      "matches": ["https://*.cnn.gr/*", "https://*.iefimerida.gr/*", "https://*.tanea.gr/*", "https://*.kathimerini.gr/*", "https://*.protothema.gr/*", "https://*.news247.gr/*", "https://*.newsit.gr/*", "https://*.naftemporiki.gr/*", "https://*.capital.gr/*", "https://*.liberal.gr/*", "https://*.dikaiologitika.gr/*", "https://*.in.gr/*", "https://*.newpost.gr/*", "https://*.efsyn.gr/*", "https://*.newsbeast.gr/*", "https://*.documentonews.gr/*", "https://*.newsbomb.gr/*", "https://*.tvxs.gr/*", "https://*.pronews.gr/*"],
       "js": ["content_script_clean.js"],
       "css": ["css/content_styles.css"],
       "run_at": "document_end"

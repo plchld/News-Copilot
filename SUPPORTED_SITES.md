@@ -28,7 +28,7 @@
 **Εναλλακτικά & Πολιτικά Μέσα:**
 - ✅ efsyn.gr - Εφημερίδα των Συντακτών (ανεξάρτητη δημοσιογραφία)
 - ✅ avgi.gr - Αυγή (πολιτική εφημερίδα)
-- ✅ documento.gr - Documento (ερευνητική δημοσιογραφία)
+- ✅ documentonews.gr - Documento News (ερευνητική δημοσιογραφία)
 - ✅ liberal.gr - Liberal.gr (πολιτικά, οικονομία)
 - ✅ thetoc.gr - TheTOC (πολιτική ανάλυση)
 - ✅ zougla.gr - Zougla (πολιτικά, gossip)
