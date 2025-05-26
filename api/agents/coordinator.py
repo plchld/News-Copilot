@@ -86,6 +86,15 @@ class AgentCoordinator:
             Dictionary mapping analysis types to their results
         """
         start_time = datetime.now()
+        session_id = f"session_{start_time.strftime('%Y%m%d_%H%M%S')}_{id(self):x}"
+        
+        self.logger.info(
+            f"[COORDINATOR] Starting analysis session {session_id} | "
+            f"URL: {article_url[:100]}... | "
+            f"Article length: {len(article_text)} chars | "
+            f"Requested types: {[t.value for t in analysis_types]} | "
+            f"User: {user_context.get('user_id', 'anonymous')} ({user_context.get('tier', 'free') if user_context else 'free'})"
+        )
         
         # Build context for all agents
         context = {
@@ -93,6 +102,7 @@ class AgentCoordinator:
             'article_text': article_text,
             'user_tier': user_context.get('tier', 'free') if user_context else 'free',
             'user_id': user_context.get('user_id') if user_context else None,
+            'session_id': session_id,
             **(user_context or {})
         }
         
@@ -100,7 +110,16 @@ class AgentCoordinator:
         valid_types = [t for t in analysis_types if t in self.agents]
         if len(valid_types) < len(analysis_types):
             invalid = set(analysis_types) - set(valid_types)
-            self.logger.warning(f"Invalid analysis types requested: {invalid}")
+            self.logger.warning(
+                f"[COORDINATOR] {session_id} - Invalid analysis types requested: {invalid} | "
+                f"Valid types: {[t.value for t in valid_types]}"
+            )
+        
+        self.logger.info(
+            f"[COORDINATOR] {session_id} - Executing {len(valid_types)} agents | "
+            f"Strategy: {'streaming' if self.config.enable_streaming and stream_callback else 'parallel'} | "
+            f"Max parallel: {self.config.max_parallel_agents}"
+        )
         
         # Execute agents based on strategy
         if self.config.enable_streaming and stream_callback:
@@ -112,10 +131,16 @@ class AgentCoordinator:
         total_time = (datetime.now() - start_time).total_seconds()
         total_tokens = sum(r.tokens_used or 0 for r in results.values())
         total_cost = self._estimate_total_cost(results)
+        successful_agents = [t.value for t, r in results.items() if r.success]
+        failed_agents = [t.value for t, r in results.items() if not r.success]
         
         self.logger.info(
-            f"Completed {len(results)} analyses in {total_time:.2f}s | "
-            f"Tokens: {total_tokens} | Est. Cost: ${total_cost:.4f}"
+            f"[COORDINATOR] {session_id} - COMPLETED | "
+            f"Duration: {total_time:.2f}s | "
+            f"Successful: {len(successful_agents)}/{len(results)} ({successful_agents}) | "
+            f"Failed: {len(failed_agents)} ({failed_agents}) | "
+            f"Total tokens: {total_tokens} | "
+            f"Est. cost: ${total_cost:.4f}"
         )
         
         return results
@@ -127,11 +152,23 @@ class AgentCoordinator:
     ) -> Dict[AnalysisType, AgentResult]:
         """Execute agents in parallel batches"""
         results = {}
+        session_id = context.get('session_id', 'unknown')
         
         # Group agents by priority (based on complexity)
         priority_groups = self._group_by_priority(analysis_types)
         
+        self.logger.info(
+            f"[COORDINATOR] {session_id} - Parallel execution plan: "
+            f"{dict((p, [t.value for t in types]) for p, types in priority_groups.items())}"
+        )
+        
         for priority, types in priority_groups.items():
+            batch_start = datetime.now()
+            self.logger.info(
+                f"[COORDINATOR] {session_id} - Starting priority {priority} batch: "
+                f"{[t.value for t in types]} ({len(types)} agents)"
+            )
+            
             # Execute batch in parallel (respecting max parallel limit)
             batch_tasks = []
             
@@ -141,17 +178,29 @@ class AgentCoordinator:
                 batch_tasks.append((analysis_type, task))
             
             # Wait for batch to complete
+            batch_results = {}
             for analysis_type, task in batch_tasks:
                 try:
                     result = await task
                     results[analysis_type] = result
+                    batch_results[analysis_type.value] = 'SUCCESS' if result.success else f'FAILED: {result.error}'
                 except Exception as e:
-                    self.logger.error(f"Failed to execute {analysis_type}: {str(e)}")
+                    error_msg = str(e)
+                    self.logger.error(
+                        f"[COORDINATOR] {session_id} - Exception in {analysis_type.value}: {error_msg}"
+                    )
                     results[analysis_type] = AgentResult(
                         success=False,
-                        error=str(e),
+                        error=error_msg,
                         agent_name=analysis_type.value
                     )
+                    batch_results[analysis_type.value] = f'EXCEPTION: {error_msg}'
+            
+            batch_time = (datetime.now() - batch_start).total_seconds()
+            self.logger.info(
+                f"[COORDINATOR] {session_id} - Priority {priority} batch completed in {batch_time:.2f}s | "
+                f"Results: {batch_results}"
+            )
         
         return results
     
@@ -199,38 +248,94 @@ class AgentCoordinator:
     ) -> AgentResult:
         """Execute an agent with retry logic"""
         max_retries = 3 if self.config.retry_failed_agents else 1
+        session_id = context.get('session_id', 'unknown')
+        agent_start = datetime.now()
+        
+        self.logger.info(
+            f"[AGENT] {session_id} - Starting {analysis_type.value} agent | "
+            f"Max retries: {max_retries} | "
+            f"Default model: {agent.config.default_model.value} | "
+            f"Complexity: {agent.config.complexity.name}"
+        )
         
         for attempt in range(max_retries):
+            attempt_start = datetime.now()
             try:
                 # Add retry count to context for model selection
                 retry_context = {**context, 'retry_count': attempt}
                 
+                self.logger.info(
+                    f"[AGENT] {session_id} - {analysis_type.value} attempt {attempt + 1}/{max_retries} | "
+                    f"Context: user_tier={retry_context.get('user_tier')}, "
+                    f"article_length={len(retry_context.get('article_text', ''))}, "
+                    f"retry_count={attempt}"
+                )
+                
                 # Execute agent
                 result = await agent.execute(retry_context)
                 
+                attempt_time = (datetime.now() - attempt_start).total_seconds()
+                
                 if result.success:
+                    total_time = (datetime.now() - agent_start).total_seconds()
+                    self.logger.info(
+                        f"[AGENT] {session_id} - {analysis_type.value} SUCCESS | "
+                        f"Attempt: {attempt + 1}/{max_retries} | "
+                        f"Attempt time: {attempt_time:.2f}s | "
+                        f"Total time: {total_time:.2f}s | "
+                        f"Model used: {result.model_used.value if result.model_used else 'unknown'} | "
+                        f"Tokens: {result.tokens_used or 0} | "
+                        f"Data keys: {list(result.data.keys()) if result.data else []}"
+                    )
                     return result
                 
                 # Log failure and potentially retry
+                self.logger.warning(
+                    f"[AGENT] {session_id} - {analysis_type.value} FAILED attempt {attempt + 1} | "
+                    f"Time: {attempt_time:.2f}s | "
+                    f"Error: {result.error} | "
+                    f"Model: {result.model_used.value if result.model_used else 'unknown'}"
+                )
+                
                 if attempt < max_retries - 1:
-                    self.logger.warning(
-                        f"{analysis_type} failed (attempt {attempt + 1}), retrying..."
+                    backoff_time = 2 ** attempt
+                    self.logger.info(
+                        f"[AGENT] {session_id} - {analysis_type.value} retrying in {backoff_time}s..."
                     )
-                    await asyncio.sleep(2 ** attempt)  # Exponential backoff
+                    await asyncio.sleep(backoff_time)  # Exponential backoff
                 
             except Exception as e:
+                attempt_time = (datetime.now() - attempt_start).total_seconds()
+                error_msg = str(e)
+                
+                self.logger.error(
+                    f"[AGENT] {session_id} - {analysis_type.value} EXCEPTION attempt {attempt + 1} | "
+                    f"Time: {attempt_time:.2f}s | "
+                    f"Error: {error_msg}"
+                )
+                
                 if attempt < max_retries - 1:
-                    self.logger.warning(
-                        f"{analysis_type} exception (attempt {attempt + 1}): {str(e)}"
+                    backoff_time = 2 ** attempt
+                    self.logger.info(
+                        f"[AGENT] {session_id} - {analysis_type.value} retrying after exception in {backoff_time}s..."
                     )
-                    await asyncio.sleep(2 ** attempt)
+                    await asyncio.sleep(backoff_time)
                 else:
                     raise
         
         # All retries failed
+        total_time = (datetime.now() - agent_start).total_seconds()
+        final_error = f"Failed after {max_retries} attempts"
+        
+        self.logger.error(
+            f"[AGENT] {session_id} - {analysis_type.value} EXHAUSTED RETRIES | "
+            f"Total time: {total_time:.2f}s | "
+            f"Final error: {final_error}"
+        )
+        
         return AgentResult(
             success=False,
-            error=f"Failed after {max_retries} attempts",
+            error=final_error,
             agent_name=analysis_type.value
         )
     

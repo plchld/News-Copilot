@@ -487,10 +487,100 @@
             hideProgress();
         }
 
+        // Quirky message mappings
+        const quirkMessageMap = {
+            // Setup phase
+            "Initializing analysis...": "🔌 Ξυπνάμε τους ψηφιακούς πράκτορες...",
+            
+            // Article extraction
+            "Fetching article content...": "📥 Κατεβάζουμε το άρθρο από την πηγή...",
+            
+            // Jargon analysis
+            "Analyzing terms and concepts...": "🕵️ Μια αρμάδα από πράκτορες-γλωσσολόγους ψάχνει δύσκολους όρους...",
+            "Terms explained": "✅ Επιβεβαιώνουμε την ακρίβεια των ορισμών...",
+            
+            // Viewpoints
+            "Finding alternative viewpoints...": "🌐 Στέλνουμε πράκτορες να ψάξουν αντίθετες απόψεις...",
+            "Alternative viewpoints found": "📝 Συντάσσουμε ισορροπημένη παρουσίαση των απόψεων...",
+            
+            // Final
+            "Analysis complete!": "✨ Όλοι οι πράκτορες επέστρεψαν με τα ευρήματά τους!"
+        };
+
+        // Progress message sequences for longer processes
+        const progressSequences = {
+            jargon: [
+                "🔤 Εντοπίζουμε ακρωνύμια και εξειδικευμένες λέξεις...",
+                "📚 Σαρώνουμε για τεχνικούς όρους και οργανισμούς...",
+                "🌐 Οι πράκτορές μας ψάχνουν στο διαδίκτυο για ορισμούς...",
+                "🔬 Αναλύουμε το πλαίσιο κάθε άγνωστου όρου...",
+                "📖 Συνθέτουμε κατανοητές εξηγήσεις...",
+                "🎯 Τελειοποιούμε τις επεξηγήσεις για το ελληνικό κοινό..."
+            ],
+            viewpoints: [
+                "🔄 Η ομάδα μας σαρώνει εναλλακτικές πηγές...",
+                "👥 Οι ερευνητές μας συλλέγουν διαφορετικές φωνές...",
+                "🎭 Αναζητούμε κριτικές και αντιρρήσεις...",
+                "📰 Διασταυρώνουμε με άλλα ειδησεογραφικά sites...",
+                "🗣️ Εντοπίζουμε δηλώσεις από διαφορετικές πλευρές...",
+                "⚖️ Ζυγίζουμε την ισχύ κάθε επιχειρήματος..."
+            ]
+        };
+
+        let currentSequence = null;
+        let sequenceIndex = 0;
+        let sequenceTimer = null;
+
         function showProgress(message) {
             const progressEl = document.getElementById('progressIndicator');
-            progressEl.textContent = message;
+            
+            // Check if we have a quirky mapping for this message
+            let displayMessage = quirkMessageMap[message] || message;
+            
+            // Handle sequence triggers
+            if (message === "Analyzing terms and concepts...") {
+                startProgressSequence('jargon', displayMessage);
+                return;
+            } else if (message === "Finding alternative viewpoints...") {
+                startProgressSequence('viewpoints', displayMessage);
+                return;
+            } else if (message === "Terms explained" || message === "Alternative viewpoints found" || message === "Analysis complete!") {
+                stopProgressSequence();
+            }
+            
+            progressEl.textContent = displayMessage;
             progressEl.style.display = 'block';
+        }
+
+        function startProgressSequence(sequenceType, initialMessage) {
+            stopProgressSequence(); // Clear any existing sequence
+            
+            const progressEl = document.getElementById('progressIndicator');
+            progressEl.textContent = initialMessage;
+            progressEl.style.display = 'block';
+            
+            currentSequence = progressSequences[sequenceType];
+            sequenceIndex = 0;
+            
+            // Start cycling through the sequence
+            sequenceTimer = setInterval(() => {
+                if (sequenceIndex < currentSequence.length) {
+                    progressEl.textContent = currentSequence[sequenceIndex];
+                    sequenceIndex++;
+                } else {
+                    // Loop back to beginning for long processes
+                    sequenceIndex = 0;
+                }
+            }, 2000); // Change message every 2 seconds
+        }
+
+        function stopProgressSequence() {
+            if (sequenceTimer) {
+                clearInterval(sequenceTimer);
+                sequenceTimer = null;
+            }
+            currentSequence = null;
+            sequenceIndex = 0;
         }
 
         function hideProgress() {

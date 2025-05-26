@@ -58,14 +58,16 @@ class AnalysisHandler:
             Server-sent events with progress updates and results
         """
         print(f"[get_augmentations_stream] Starting for URL: {article_url}", flush=True)
+        yield self.stream_event("progress", {"status": "Initializing analysis..."})
         
         # Fetch article text
         article_text = None
         try:
             print("[get_augmentations_stream] Calling fetch_text...", flush=True)
-            yield self.stream_event("progress", {"status": "📄 Εξαγωγή περιεχομένου άρθρου..."})
+            yield self.stream_event("progress", {"status": "Fetching article content..."})
             article_text = fetch_text(article_url)
             print(f"[get_augmentations_stream] fetch_text returned article_text (length: {len(article_text)})", flush=True)
+            yield self.stream_event("progress", {"status": f"Article extracted ({len(article_text)} characters)"})
         except RuntimeError as e:
             print(f"[get_augmentations_stream] ERROR from fetch_text: {e}", flush=True)
             yield self.stream_event("error", {"message": f"Error fetching article: {str(e)}"})
@@ -97,7 +99,7 @@ class AnalysisHandler:
         # Get jargon explanations
         try:
             print("[get_augmentations_stream] Preparing for Grok jargon call...", flush=True)
-            yield self.stream_event("progress", {"status": "🔎 Εντοπισμός τεχνικών όρων..."})
+            yield self.stream_event("progress", {"status": "Analyzing terms and concepts..."})
             
             # Use proper prompt utilities
             from .prompt_utils import (
@@ -112,8 +114,6 @@ class AnalysisHandler:
             system_prompt = build_prompt(task_instruction, json_schema)
             system_prompt = inject_runtime_search_context(system_prompt, search_params)
             
-            yield self.stream_event("progress", {"status": "🧠 Ανάλυση κειμένου με Grok AI..."})
-            
             jargon_completion = self.grok_client.create_completion(
                 prompt=system_prompt,
                 search_params=search_params,
@@ -127,6 +127,7 @@ class AnalysisHandler:
                 final_results["jargon"] = json.loads(jargon_completion.choices[0].message.content)
             
             final_results["jargon_citations"] = self.grok_client.extract_citations(jargon_completion)
+            yield self.stream_event("progress", {"status": "Terms explained"})
             
         except Exception as e:
             error_message = f"Error during jargon analysis: {type(e).__name__} - {e}"
@@ -137,7 +138,7 @@ class AnalysisHandler:
         # Get alternative viewpoints
         try:
             print("[get_augmentations_stream] Preparing for Grok viewpoints call...", flush=True)
-            yield self.stream_event("progress", {"status": "🌐 Αναζήτηση εναλλακτικών απόψεων..."})
+            yield self.stream_event("progress", {"status": "Finding alternative viewpoints..."})
             
             # Use proper prompt utilities
             from .prompt_utils import (
@@ -152,8 +153,6 @@ class AnalysisHandler:
             system_prompt = build_prompt(task_instruction, json_schema)
             system_prompt = inject_runtime_search_context(system_prompt, search_params)
             
-            yield self.stream_event("progress", {"status": "📚 Σύνθεση διαφορετικών οπτικών..."})
-            
             viewpoints_completion = self.grok_client.create_completion(
                 prompt=system_prompt,
                 search_params=search_params,
@@ -165,6 +164,7 @@ class AnalysisHandler:
             
             final_results["viewpoints"] = viewpoints_completion.choices[0].message.content
             final_results["viewpoints_citations"] = self.grok_client.extract_citations(viewpoints_completion)
+            yield self.stream_event("progress", {"status": "Alternative viewpoints found"})
             
         except Exception as e:
             error_message = f"Error during viewpoints analysis: {type(e).__name__} - {e}"
@@ -173,6 +173,7 @@ class AnalysisHandler:
             return
         
         print(f"[get_augmentations_stream] All tasks complete. Sending final results.", flush=True)
+        yield self.stream_event("progress", {"status": "Analysis complete!"})
         yield self.stream_event("final_result", final_results)
     
     def get_deep_analysis(self, article_url: str, analysis_type: str, search_params: Dict[str, Any]) -> Dict[str, Any]:
