@@ -7,9 +7,14 @@ import time
 from typing import Dict, Any, Generator, List
 from pydantic import BaseModel
 
-from .article_extractor import fetch_text
-from .grok_client import GrokClient
-from .models import TermExplanation, JargonResponse
+try:
+    from .article_extractor import fetch_text
+    from .grok_client import GrokClient
+    from .models import TermExplanation, JargonResponse
+except ImportError:
+    from article_extractor import fetch_text
+    from grok_client import GrokClient
+    from models import TermExplanation, JargonResponse
 
 # Import prompts from the parent directory
 import sys
@@ -20,21 +25,38 @@ from prompts import (
     GROK_ALTERNATIVE_VIEWPOINTS_PROMPT
 )
 # Import new prompt utilities
-from .prompt_utils import (
-    build_prompt,
-    get_fact_check_task_instruction,
-    get_bias_analysis_task_instruction,
-    get_timeline_task_instruction,
-    get_expert_opinions_task_instruction,
-    get_article_topic_extraction_instruction,
-    get_x_pulse_analysis_task_instruction,
-    get_fact_check_schema,
-    get_bias_analysis_schema,
-    get_timeline_schema,
-    get_expert_opinions_schema,
-    get_article_topic_extraction_schema,
-    get_x_pulse_analysis_schema
-)
+try:
+    from .prompt_utils import (
+        build_prompt,
+        get_fact_check_task_instruction,
+        get_bias_analysis_task_instruction,
+        get_timeline_task_instruction,
+        get_expert_opinions_task_instruction,
+        get_article_topic_extraction_instruction,
+        get_x_pulse_analysis_task_instruction,
+        get_fact_check_schema,
+        get_bias_analysis_schema,
+        get_timeline_schema,
+        get_expert_opinions_schema,
+        get_article_topic_extraction_schema,
+        get_x_pulse_analysis_schema
+    )
+except ImportError:
+    from prompt_utils import (
+        build_prompt,
+        get_fact_check_task_instruction,
+        get_bias_analysis_task_instruction,
+        get_timeline_task_instruction,
+        get_expert_opinions_task_instruction,
+        get_article_topic_extraction_instruction,
+        get_x_pulse_analysis_task_instruction,
+        get_fact_check_schema,
+        get_bias_analysis_schema,
+        get_timeline_schema,
+        get_expert_opinions_schema,
+        get_article_topic_extraction_schema,
+        get_x_pulse_analysis_schema
+    )
 
 
 class AnalysisHandler:
@@ -55,6 +77,20 @@ class AnalysisHandler:
             retry_failed_agents=True
         )
         self.coordinator = AgentCoordinator(self.grok_client, config)
+    
+    async def _run_concurrent_analysis(self, article_url: str, article_text: str, context: Dict[str, Any]) -> Dict:
+        """Helper method to run concurrent analysis"""
+        try:
+            from .agents.coordinator import AnalysisType
+        except ImportError:
+            from agents.coordinator import AnalysisType
+        
+        return await self.coordinator.analyze_article(
+            article_url=article_url,
+            article_text=article_text,
+            analysis_types=[AnalysisType.JARGON, AnalysisType.VIEWPOINTS],
+            user_context=context
+        )
         
     def stream_event(self, event_type: str, data: Any) -> str:
         """Format a server-sent event"""
@@ -129,6 +165,7 @@ class AnalysisHandler:
             # Execute jargon and viewpoints agents concurrently
             yield self.stream_event("progress", {"status": "🧠 Analyzing terms & finding viewpoints in parallel..."})
             
+            # Now use the agent coordinator directly (async is fixed)
             results = await self.coordinator.analyze_article(
                 article_url=article_url,
                 article_text=article_text,

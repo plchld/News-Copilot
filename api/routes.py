@@ -82,9 +82,8 @@ def augment_article_stream_route():
             yield f"event: error\ndata: {json.dumps({'message': 'Missing URL parameter'})}\n\n"
         return Response(stream_with_context(error_stream()), mimetype='text/event-stream')
 
-    # Create a wrapper generator that handles async execution and logs usage
+    # Create a wrapper generator that logs usage after completion
     def stream_with_usage_logging():
-        import asyncio
         # Track if we've logged usage yet (only log once)
         usage_logged = False
         
@@ -92,31 +91,18 @@ def augment_article_stream_route():
             # Get user info from request context (set by auth decorator)
             user_id = getattr(request, 'user_id', None)
             
-            # Run the async generator in an event loop
-            async def run_async_stream():
-                async for chunk in analysis_handler.get_augmentations_stream(article_url):
-                    yield chunk
+            # Stream the analysis (async generator)
+            import asyncio
             
-            # Create or get event loop and run the async generator
-            try:
-                loop = asyncio.get_event_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            
-            # Convert async generator to sync by running it in the loop
-            async_gen = run_async_stream()
-            
-            async def collect_chunks():
+            # Handle async generator in sync context
+            async def get_chunks():
                 chunks = []
-                async for chunk in async_gen:
+                async for chunk in analysis_handler.get_augmentations_stream(article_url):
                     chunks.append(chunk)
                 return chunks
             
-            # Get all chunks
-            chunks = loop.run_until_complete(collect_chunks())
-            
-            # Yield all chunks
+            # Run async generator and yield chunks
+            chunks = asyncio.run(get_chunks())
             for chunk in chunks:
                 yield chunk
             

@@ -410,7 +410,7 @@ class AnalysisAgent(BaseAgent):
                 ]
                 messages.extend(conversation_history)
                 
-                response = await self.grok_client.chat.completions.create(
+                response = await self.grok_client.async_client.chat.completions.create(
                     model=model.value,
                     messages=messages,
                     response_format={"type": "json_object", "schema": schema} if schema else None
@@ -449,7 +449,7 @@ class AnalysisAgent(BaseAgent):
                 if search_params:
                     request_params["search_parameters"] = search_params
                 
-                response = await self.grok_client.chat.completions.create(**request_params)
+                response = await self.grok_client.async_client.chat.completions.create(**request_params)
             
             # Parse response
             result_data = response.choices[0].message.content

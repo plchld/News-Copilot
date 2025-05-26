@@ -3,7 +3,7 @@ Grok API client module for News Copilot
 Handles all interactions with the Grok AI API
 """
 from typing import Dict, Any, List, Optional
-from openai import OpenAI, APIStatusError
+from openai import OpenAI, AsyncOpenAI, APIStatusError
 from .config import API_KEY, API_URL, MODEL
 from .search_params_builder import build_search_params
 import json
@@ -15,7 +15,10 @@ class GrokClient:
     def __init__(self):
         if not API_KEY:
             raise ValueError("XAI_API_KEY not set in environment variables")
+        # Keep synchronous client for backwards compatibility
         self.client = OpenAI(api_key=API_KEY, base_url=API_URL)
+        # Add async client for agent system
+        self.async_client = AsyncOpenAI(api_key=API_KEY, base_url=API_URL)
         self.model = MODEL
         
     def create_completion(
