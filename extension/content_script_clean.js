@@ -973,66 +973,136 @@ function formatBiasAnalysis(data) {
         }
         
         const confidenceColors = {
-            'υψηλή': '#16a34a',
-            'μέτρια': '#f59e0b',
-            'χαμηλή': '#dc2626'
+            'Υψηλή': '#16a34a',
+            'Μέτρια': '#f59e0b', 
+            'Χαμηλή': '#dc2626'
         };
         
         const toneColors = {
             'θετικός': '#16a34a',
             'ουδέτερος': '#6b7280',
             'αρνητικός': '#dc2626',
-            'ανάμεικτος': '#f59e0b'
+            'μικτός': '#f59e0b'
         };
+        
+        // Extract data from the new nested structure
+        const political = data.political_spectrum_analysis_greek || {};
+        const language = data.language_and_framing_analysis || {};
+        
+        const economicPlacement = political.economic_axis_placement || 'Ουδέτερο';
+        const socialPlacement = political.social_axis_placement || 'Άγνωστο';
+        const confidence = political.overall_confidence || 'Μέτρια';
+        const tone = language.detected_tone || 'ουδέτερος';
     
     return `
         <div class="bias-analysis">
-            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
-                <div style="text-align: center; padding: 12px; background: #f3f4f6; border-radius: 8px;">
-                    <div style="font-size: 24px; margin-bottom: 4px;">🎯</div>
-                    <div style="font-size: 12px; color: #6b7280;">Πολιτική Κλίση</div>
-                    <div style="font-weight: 600; color: #1e293b; font-size: 13px;">${data.political_lean || 'Ουδέτερο'}</div>
-                </div>
-                <div style="text-align: center; padding: 12px; background: #f3f4f6; border-radius: 8px;">
-                    <div style="font-size: 24px; margin-bottom: 4px;">🎭</div>
-                    <div style="font-size: 12px; color: #6b7280;">Συναισθηματικός Τόνος</div>
-                    <div style="font-weight: 600; color: ${toneColors[data.emotional_tone] || '#6b7280'}; font-size: 13px;">${data.emotional_tone || 'Ουδέτερος'}</div>
-                </div>
-                <div style="text-align: center; padding: 12px; background: #f3f4f6; border-radius: 8px;">
-                    <div style="font-size: 24px; margin-bottom: 4px;">📊</div>
-                    <div style="font-size: 12px; color: #6b7280;">Βεβαιότητα</div>
-                    <div style="font-weight: 600; color: ${confidenceColors[data.confidence] || '#6b7280'}; font-size: 13px;">${data.confidence || 'Μέτρια'}</div>
-                </div>
-            </div>
-            
-            ${data.language_analysis ? `
-                <div style="padding: 12px; background: white; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 12px;">
-                    <strong style="color: #1e293b;">🔍 Ανάλυση Γλώσσας:</strong>
-                    <div style="margin-top: 8px;">
-                        ${data.language_analysis.framing ? `<p style="margin: 4px 0; font-size: 13px;"><strong>Πλαισίωση:</strong> ${data.language_analysis.framing}</p>` : ''}
-                        ${data.language_analysis.loaded_words && data.language_analysis.loaded_words.length > 0 ? `
-                            <p style="margin: 4px 0; font-size: 13px;">
-                                <strong>Φορτισμένες λέξεις:</strong> ${data.language_analysis.loaded_words.slice(0, 5).map(word => `<span style="background: #fef3c7; padding: 2px 6px; border-radius: 4px; margin: 0 2px;">${word}</span>`).join('')}
-                            </p>
-                        ` : ''}
-                        ${data.language_analysis.missing_perspectives ? `<p style="margin: 4px 0; font-size: 13px;"><strong>Απόψεις που λείπουν:</strong> ${data.language_analysis.missing_perspectives}</p>` : ''}
+            <!-- Political Spectrum Analysis -->
+            <div style="padding: 16px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; margin-bottom: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: #1e293b; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                    <span>📊</span> Πολιτικό Φάσμα
+                </h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+                    <div style="text-align: center; padding: 12px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;">
+                        <div style="font-size: 20px; margin-bottom: 4px;">⚖️</div>
+                        <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Οικονομικός Άξονας</div>
+                        <div style="font-weight: 600; color: #1e293b; font-size: 12px;">${economicPlacement}</div>
+                    </div>
+                    <div style="text-align: center; padding: 12px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;">
+                        <div style="font-size: 20px; margin-bottom: 4px;">🏛️</div>
+                        <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Κοινωνικός Άξονας</div>
+                        <div style="font-weight: 600; color: #1e293b; font-size: 12px;">${socialPlacement}</div>
+                    </div>
+                    <div style="text-align: center; padding: 12px; background: white; border-radius: 8px; border: 1px solid #e5e7eb;">
+                        <div style="font-size: 20px; margin-bottom: 4px;">🎯</div>
+                        <div style="font-size: 11px; color: #6b7280; margin-bottom: 4px;">Βεβαιότητα</div>
+                        <div style="font-weight: 600; color: ${confidenceColors[confidence] || '#6b7280'}; font-size: 12px;">${confidence}</div>
                     </div>
                 </div>
-            ` : ''}
+                
+                ${political.economic_axis_justification ? `
+                    <div style="padding: 10px; background: #f1f5f9; border-radius: 6px; margin-bottom: 8px;">
+                        <div style="font-size: 11px; color: #475569; font-weight: 500; margin-bottom: 4px;">Οικονομική Αιτιολόγηση:</div>
+                        <div style="font-size: 12px; color: #334155; line-height: 1.4;">${political.economic_axis_justification}</div>
+                    </div>
+                ` : ''}
+                
+                ${political.social_axis_justification ? `
+                    <div style="padding: 10px; background: #f1f5f9; border-radius: 6px;">
+                        <div style="font-size: 11px; color: #475569; font-weight: 500; margin-bottom: 4px;">Κοινωνική Αιτιολόγηση:</div>
+                        <div style="font-size: 12px; color: #334155; line-height: 1.4;">${political.social_axis_justification}</div>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <!-- Language and Framing Analysis -->
+            <div style="padding: 16px; background: #fefce8; border: 1px solid #fef08a; border-radius: 12px; margin-bottom: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: #a16207; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                    <span>🔍</span> Ανάλυση Γλώσσας & Πλαισίωσης
+                </h4>
+                
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px; padding: 8px; background: white; border-radius: 6px;">
+                    <span style="font-size: 18px;">🎭</span>
+                    <span style="font-size: 12px; color: #92400e; font-weight: 500;">Συναισθηματικός Τόνος:</span>
+                    <span style="font-weight: 600; color: ${toneColors[tone] || '#6b7280'}; font-size: 12px; text-transform: capitalize;">${tone}</span>
+                </div>
+                
+                ${language.emotionally_charged_terms && language.emotionally_charged_terms.length > 0 ? `
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 12px; color: #92400e; font-weight: 500; margin-bottom: 6px;">🔥 Φορτισμένοι Όροι:</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+                            ${language.emotionally_charged_terms.slice(0, 6).map(termObj => {
+                                const term = typeof termObj === 'object' ? termObj.term : termObj;
+                                const explanation = typeof termObj === 'object' ? termObj.explanation : '';
+                                return `<span style="background: #fde68a; color: #92400e; padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: 500;" title="${explanation}">${term}</span>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${language.identified_framing_techniques && language.identified_framing_techniques.length > 0 ? `
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-size: 12px; color: #92400e; font-weight: 500; margin-bottom: 6px;">🎨 Τεχνικές Πλαισίωσης:</div>
+                        ${language.identified_framing_techniques.map(technique => `
+                            <div style="padding: 8px; background: white; border-radius: 6px; margin-bottom: 4px; border-left: 3px solid #fde68a;">
+                                <div style="font-size: 11px; font-weight: 600; color: #92400e; margin-bottom: 2px;">${technique.technique_name}</div>
+                                <div style="font-size: 11px; color: #451a03; line-height: 1.3;">"${technique.example_from_article}"</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+                
+                ${language.missing_perspectives_summary ? `
+                    <div style="padding: 10px; background: white; border-radius: 6px; border-left: 3px solid #f59e0b;">
+                        <div style="font-size: 11px; color: #92400e; font-weight: 500; margin-bottom: 4px;">❓ Απόψεις που Απουσιάζουν:</div>
+                        <div style="font-size: 12px; color: #451a03; line-height: 1.4;">${language.missing_perspectives_summary}</div>
+                    </div>
+                ` : ''}
+            </div>
             
             ${data.comparison ? `
-                <div style="padding: 12px; background: #fefce8; border: 1px solid #fef08a; border-radius: 8px; margin-bottom: 12px;">
-                    <strong style="color: #a16207;">📰 Σύγκριση με άλλες πηγές:</strong>
+                <div style="padding: 12px; background: #f0f9ff; border: 1px solid #bfdbfe; border-radius: 8px; margin-bottom: 12px;">
+                    <strong style="color: #1e40af;">📰 Σύγκριση:</strong>
                     <p style="margin: 4px 0 0 0; font-size: 13px; line-height: 1.5;">${data.comparison}</p>
                 </div>
             ` : ''}
             
             ${data.recommendations ? `
-                <div style="padding: 12px; background: #f0f9ff; border: 1px solid #bfdbfe; border-radius: 8px;">
-                    <strong style="color: #1e40af;">💡 Συστάσεις:</strong>
+                <div style="padding: 12px; background: #ecfdf5; border: 1px solid #bbf7d0; border-radius: 8px;">
+                    <strong style="color: #065f46;">💡 Συστάσεις:</strong>
                     <p style="margin: 4px 0 0 0; font-size: 13px; line-height: 1.5;">${data.recommendations}</p>
                 </div>
             ` : ''}
+            
+            <!-- Analysis Note -->
+            <div style="padding: 10px; background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 12px;">
+                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                    <span style="font-size: 14px;">ℹ️</span>
+                    <strong style="color: #334155; font-size: 11px;">Σημείωση Ανάλυσης</strong>
+                </div>
+                <p style="margin: 0; font-size: 10px; line-height: 1.4; color: #64748b;">
+                    Η ανάλυση μεροληψίας βασίζεται αποκλειστικά στο περιεχόμενο του άρθρου, χωρή χρήση εξωτερικών πηγών, για αντικειμενική αξιολόγηση της γλώσσας και πλαισίωσης.
+                </p>
+            </div>
         </div>
     `;
     } catch (error) {

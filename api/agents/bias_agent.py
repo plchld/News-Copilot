@@ -40,16 +40,10 @@ Social: Προοδευτική/Φιλελεύθερη/Μετριοπαθής/Σ�
 ALL analysis and justifications must be in GREEK."""
     
     def _build_search_params(self, context: Dict[str, Any]) -> Optional[Dict]:
-        """Build search parameters for bias analysis"""
-        from ..search_params_builder import get_search_params_for_bias_analysis
-        from urllib.parse import urlparse
-        
-        # Extract domain from article URL to exclude it
-        article_url = context.get('article_url', '')
-        parsed_url = urlparse(article_url)
-        article_domain = parsed_url.netloc.replace('www.', '') if parsed_url.netloc else None
-        
-        return get_search_params_for_bias_analysis(mode="on", article_domain=article_domain)
+        """Build search parameters for bias analysis - bias analysis doesn't need live search"""
+        # Bias analysis should be based solely on article content, not external sources
+        # We don't need live search to determine if something is biased
+        return None
 
 BIAS_ANALYSIS_SCHEMA = {
     "type": "object",
