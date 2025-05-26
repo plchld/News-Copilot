@@ -1,7 +1,7 @@
 """Base Agent Classes for News Copilot Agentic Architecture"""
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List, Tuple, Callable
 from enum import Enum
 import asyncio
 import logging
@@ -52,7 +52,57 @@ class AgentResult:
     refinement_calls_count: Optional[int] = None
 
 
-class BaseAgent(ABC):
+class AsyncCommunicationMixin:
+    """Mixin for async communication utilities"""
+    
+    @staticmethod
+    async def execute_with_timeout(coro, timeout_seconds: int, agent_name: str = "unknown"):
+        """Execute a coroutine with timeout and proper error handling"""
+        try:
+            return await asyncio.wait_for(coro, timeout=timeout_seconds)
+        except asyncio.TimeoutError:
+            raise Exception(f"Agent {agent_name} timed out after {timeout_seconds} seconds")
+        except Exception as e:
+            raise Exception(f"Agent {agent_name} failed: {str(e)}")
+    
+    @staticmethod
+    async def execute_with_semaphore(semaphore: asyncio.Semaphore, coro, agent_name: str = "unknown"):
+        """Execute a coroutine with semaphore control"""
+        async with semaphore:
+            return await coro
+    
+    @staticmethod
+    async def gather_with_error_handling(*coros, return_exceptions: bool = True) -> List[Any]:
+        """Enhanced asyncio.gather with better error handling"""
+        try:
+            results = await asyncio.gather(*coros, return_exceptions=return_exceptions)
+            return results
+        except Exception as e:
+            # If gather itself fails, return exceptions for all coroutines
+            return [e] * len(coros)
+    
+    @staticmethod
+    async def execute_with_retry(coro_factory: Callable, max_retries: int = 3, 
+                                backoff_factor: float = 2.0, agent_name: str = "unknown"):
+        """Execute a coroutine factory with exponential backoff retry"""
+        last_exception = None
+        
+        for attempt in range(max_retries):
+            try:
+                coro = coro_factory()
+                return await coro
+            except Exception as e:
+                last_exception = e
+                if attempt < max_retries - 1:
+                    wait_time = backoff_factor ** attempt
+                    await asyncio.sleep(wait_time)
+                    continue
+                break
+        
+        raise Exception(f"Agent {agent_name} failed after {max_retries} attempts: {str(last_exception)}")
+
+
+class BaseAgent(ABC, AsyncCommunicationMixin):
     """Base class for all agents"""
     
     def __init__(self, config: AgentConfig, grok_client: Any):
@@ -280,11 +330,14 @@ class AnalysisAgent(BaseAgent):
             total_time_ms = int((datetime.now() - start_time).total_seconds() * 1000)
             
             # Log detailed performance breakdown
+            api_percentage = (phase_times['api_call']/total_time_ms*100) if total_time_ms > 0 else 0
+            prep_percentage = (prep_time/total_time_ms*100) if total_time_ms > 0 else 0
+            
             self.logger.info(
                 f"[PERFORMANCE_BREAKDOWN] {session_id} - {self.config.name} | "
                 f"Total: {total_time_ms}ms | "
-                f"API: {phase_times['api_call']}ms ({phase_times['api_call']/total_time_ms*100:.1f}%) | "
-                f"Prep: {prep_time}ms ({prep_time/total_time_ms*100:.1f}%) | "
+                f"API: {phase_times['api_call']}ms ({api_percentage:.1f}%) | "
+                f"Prep: {prep_time}ms ({prep_percentage:.1f}%) | "
                 f"Validation: {phase_times['validation']}ms | "
                 f"Tokens: {tokens_used} | "
                 f"Response: {validation_status}"
@@ -412,28 +465,41 @@ class AnalysisAgent(BaseAgent):
                 
                 response = await self.grok_client.async_client.chat.completions.create(
                     model=model.value,
-                    messages=messages,
-                    response_format={"type": "json_object", "schema": schema} if schema else None
+                    messages=messages
+                    # Note: Grok doesn't support response_format, JSON formatting handled in prompt
                 )
             else:
                 # Standard completion
-                # Import prompt utilities for consistent formatting
-                from ..prompt_utils import build_prompt, inject_runtime_search_context
-                
-                # If prompt doesn't already include system prefix and guardrails, add them
-                if "News-Copilot" not in prompt:
-                    # Rebuild prompt with proper structure
-                    system_prompt = build_prompt(prompt, schema)
-                    system_prompt = inject_runtime_search_context(system_prompt, search_params)
+                # Check if agent has custom prompt building (like ViewpointsAgent)
+                if hasattr(self, '_build_custom_prompt'):
+                    # Use custom prompt that includes article text
+                    full_prompt = self._build_custom_prompt(context)
+                    
+                    # Still need to inject search context for custom prompts
+                    if search_params:
+                        from ..prompt_utils import inject_runtime_search_context
+                        full_prompt = inject_runtime_search_context(full_prompt, search_params)
+                    
+                    messages = [{"role": "user", "content": full_prompt}]
                 else:
-                    # Prompt already includes system components
-                    system_prompt = prompt
-                
-                # Build messages for chat completion
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": context.get('article_text', '')}
-                ]
+                    # Standard prompt building
+                    # Import prompt utilities for consistent formatting
+                    from ..prompt_utils import build_prompt, inject_runtime_search_context
+                    
+                    # If prompt doesn't already include system prefix and guardrails, add them
+                    if "News-Copilot" not in prompt:
+                        # Rebuild prompt with proper structure
+                        system_prompt = build_prompt(prompt, schema)
+                        system_prompt = inject_runtime_search_context(system_prompt, search_params)
+                    else:
+                        # Prompt already includes system components
+                        system_prompt = prompt
+                    
+                    # Build messages for chat completion
+                    messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": context.get('article_text', '')}
+                    ]
                 
                 # Build request
                 request_params = {
@@ -441,13 +507,12 @@ class AnalysisAgent(BaseAgent):
                     "messages": messages
                 }
                 
-                # Add response format if schema provided
-                if schema:
-                    request_params["response_format"] = {"type": "json_object"}
+                # Note: Grok doesn't support response_format like OpenAI
+                # We'll rely on prompt instructions for JSON formatting
                 
                 # Add search parameters if provided
                 if search_params:
-                    request_params["search_parameters"] = search_params
+                    request_params["extra_body"] = {"search_parameters": search_params}
                 
                 response = await self.grok_client.async_client.chat.completions.create(**request_params)
             
@@ -456,8 +521,10 @@ class AnalysisAgent(BaseAgent):
             if isinstance(result_data, str):
                 try:
                     result_data = json.loads(result_data)
-                except:
-                    pass
+                except json.JSONDecodeError:
+                    # If JSON parsing fails, wrap the string response in a dict
+                    self.logger.warning(f"Failed to parse JSON response, wrapping string content")
+                    result_data = {"content": result_data}
             
             tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
             

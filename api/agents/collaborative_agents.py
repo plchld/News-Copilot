@@ -28,46 +28,105 @@ class AgentMessage:
 
 
 class MessageBus:
-    """Central message bus for agent communication"""
+    """Central message bus for agent communication with async safety"""
     
     def __init__(self):
         self.subscribers = defaultdict(list)
         self.message_history = []
         self.message_queue = asyncio.Queue()
+        self._lock = asyncio.Lock()  # For thread-safe operations
+        self._running = True
         
     def subscribe(self, agent_name: str, message_types: List[str]):
         """Subscribe an agent to specific message types"""
         for msg_type in message_types:
-            self.subscribers[msg_type].append(agent_name)
+            if agent_name not in self.subscribers[msg_type]:
+                self.subscribers[msg_type].append(agent_name)
     
     async def publish(self, message: AgentMessage):
-        """Publish a message to the bus"""
-        self.message_history.append(message)
-        await self.message_queue.put(message)
+        """Publish a message to the bus with async safety"""
+        async with self._lock:
+            self.message_history.append(message)
+            await self.message_queue.put(message)
     
-    async def get_messages_for_agent(self, agent_name: str) -> List[AgentMessage]:
-        """Get all pending messages for an agent"""
+    async def get_messages_for_agent(self, agent_name: str, timeout: float = 0.1) -> List[AgentMessage]:
+        """Get all pending messages for an agent with timeout"""
         messages = []
-        
-        # Check all messages in queue
         temp_queue = []
-        while not self.message_queue.empty():
-            msg = await self.message_queue.get()
-            
-            # Direct message or subscribed broadcast
-            if msg.to_agent == agent_name or (
-                msg.to_agent is None and 
-                agent_name in self.subscribers.get(msg.message_type, [])
-            ):
-                messages.append(msg)
-            else:
-                temp_queue.append(msg)
+        
+        try:
+            # Process messages with timeout to avoid blocking
+            while True:
+                try:
+                    msg = await asyncio.wait_for(self.message_queue.get(), timeout=timeout)
+                    
+                    # Direct message or subscribed broadcast
+                    if msg.to_agent == agent_name or (
+                        msg.to_agent is None and 
+                        agent_name in self.subscribers.get(msg.message_type, [])
+                    ):
+                        messages.append(msg)
+                    else:
+                        temp_queue.append(msg)
+                        
+                except asyncio.TimeoutError:
+                    # No more messages available
+                    break
+                    
+        except Exception as e:
+            # Log error but don't fail
+            print(f"Error getting messages for {agent_name}: {e}")
         
         # Put back non-matching messages
         for msg in temp_queue:
             await self.message_queue.put(msg)
         
         return messages
+    
+    async def broadcast_to_subscribers(self, message_type: str, content: Any, from_agent: str):
+        """Efficiently broadcast to all subscribers of a message type"""
+        if message_type in self.subscribers:
+            message = AgentMessage(
+                from_agent=from_agent,
+                to_agent=None,
+                message_type=message_type,
+                content=content,
+                priority=5
+            )
+            await self.publish(message)
+    
+    async def send_direct_message(self, to_agent: str, message_type: str, content: Any, from_agent: str):
+        """Send a direct message to a specific agent"""
+        message = AgentMessage(
+            from_agent=from_agent,
+            to_agent=to_agent,
+            message_type=message_type,
+            content=content,
+            priority=10  # Higher priority for direct messages
+        )
+        await self.publish(message)
+    
+    def get_message_history(self, agent_name: Optional[str] = None, message_type: Optional[str] = None) -> List[AgentMessage]:
+        """Get filtered message history"""
+        filtered = self.message_history
+        
+        if agent_name:
+            filtered = [msg for msg in filtered if msg.from_agent == agent_name or msg.to_agent == agent_name]
+        
+        if message_type:
+            filtered = [msg for msg in filtered if msg.message_type == message_type]
+        
+        return filtered
+    
+    async def shutdown(self):
+        """Gracefully shutdown the message bus"""
+        self._running = False
+        # Clear remaining messages
+        while not self.message_queue.empty():
+            try:
+                await asyncio.wait_for(self.message_queue.get(), timeout=0.1)
+            except asyncio.TimeoutError:
+                break
 
 
 # Scout Agents for initial rapid analysis

@@ -148,10 +148,10 @@ class ThinkingAnalyzer:
         """
         prompt = get_article_analysis_prompt(article_text)
         
-        response = await self.grok_client.create_completion(
+        response = await self.grok_client.async_client.chat.completions.create(
             model=self.thinking_model,
-            prompt=prompt,
-            reasoning_effort="low",  # Quick analysis
+            messages=[{"role": "user", "content": prompt}],
+            extra_body={"reasoning_effort": "low"},  # Quick analysis
             temperature=0.3,  # Lower temperature for consistent analysis
             response_format={"type": "json_object"}
         )
@@ -174,10 +174,10 @@ class ThinkingAnalyzer:
         """
         prompt = get_search_strategy_prompt(article_text, analysis_type)
         
-        response = await self.grok_client.create_completion(
+        response = await self.grok_client.async_client.chat.completions.create(
             model=self.thinking_model,
-            prompt=prompt,
-            reasoning_effort="low",
+            messages=[{"role": "user", "content": prompt}],
+            extra_body={"reasoning_effort": "low"},
             temperature=0.3,
             response_format={"type": "json_object"}
         )
@@ -198,10 +198,10 @@ class ThinkingAnalyzer:
         """
         prompt = get_quality_check_prompt(response_json, expected_schema, analysis_type)
         
-        response = await self.grok_client.create_completion(
+        response = await self.grok_client.async_client.chat.completions.create(
             model=self.thinking_model,
-            prompt=prompt,
-            reasoning_effort="high",  # Thorough validation
+            messages=[{"role": "user", "content": prompt}],
+            extra_body={"reasoning_effort": "high"},  # Thorough validation
             temperature=0.1,  # Very low temperature for consistency
             response_format={"type": "json_object"}
         )
@@ -218,10 +218,10 @@ class ThinkingAnalyzer:
         """
         prompt = get_complexity_assessment_prompt(article_text)
         
-        response = await self.grok_client.create_completion(
+        response = await self.grok_client.async_client.chat.completions.create(
             model=self.thinking_model,
-            prompt=prompt,
-            reasoning_effort="low",
+            messages=[{"role": "user", "content": prompt}],
+            extra_body={"reasoning_effort": "low"},
             temperature=0.2,
             response_format={"type": "json_object"}
         )

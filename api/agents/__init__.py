@@ -5,7 +5,7 @@ with dynamic model selection and nested agent capabilities.
 """
 
 from .base_agent import BaseAgent, AnalysisAgent, NestedAgent, AgentConfig, ModelType, ComplexityLevel, AgentResult
-from .coordinator import AgentCoordinator, AnalysisType, CoordinatorConfig
+from .optimized_coordinator import OptimizedAgentCoordinator as AgentCoordinator, AnalysisType, OptimizedCoordinatorConfig as CoordinatorConfig
 from .jargon_agent import JargonAgent
 from .viewpoints_agent import ViewpointsAgent
 from .fact_check_agent import FactCheckAgent

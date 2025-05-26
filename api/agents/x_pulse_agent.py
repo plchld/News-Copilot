@@ -217,38 +217,45 @@ class XPulseAgent(NestedAgent):
         return cls(config, grok_client, sub_agents)
     
     async def _execute_sub_agents(self, context: Dict[str, Any]) -> List[AgentResult]:
-        """Custom orchestration for X Pulse sub-agents"""
+        """Custom orchestration for X Pulse sub-agents with optimized parallel execution"""
         session_id = context.get('session_id', 'unknown')
         orchestration_start = datetime.now()
         results = []
         
         self.logger.info(
-            f"[X_PULSE_ORCHESTRATION] {session_id} - Starting 4-stage X Pulse analysis | "
+            f"[X_PULSE_ORCHESTRATION] {session_id} - Starting optimized 4-stage X Pulse analysis | "
             f"Sub-agents: {[agent.config.name for agent in self.sub_agents]}"
         )
         
-        # Step 1: Extract keywords
+        # Step 1: Extract keywords (must complete first)
         step_start = datetime.now()
         self.logger.info(f"[X_PULSE_STEP1] {session_id} - Starting keyword extraction")
         
-        keyword_result = await self.sub_agents[0].execute(context)
-        results.append(keyword_result)
-        
-        step_time = int((datetime.now() - step_start).total_seconds() * 1000)
-        
-        if keyword_result.success:
-            keywords = keyword_result.data.get('x_search_keywords', [])
-            self.logger.info(
-                f"[X_PULSE_STEP1] {session_id} - Keyword extraction SUCCESS | "
-                f"Time: {step_time}ms | "
-                f"Keywords: {keywords}"
-            )
-        else:
-            self.logger.error(
-                f"[X_PULSE_STEP1] {session_id} - Keyword extraction FAILED | "
-                f"Time: {step_time}ms | "
-                f"Error: {keyword_result.error}"
-            )
+        try:
+            keyword_result = await self.sub_agents[0].execute(context)
+            results.append(keyword_result)
+            
+            step_time = int((datetime.now() - step_start).total_seconds() * 1000)
+            
+            if keyword_result.success:
+                keywords = keyword_result.data.get('x_search_keywords', [])
+                self.logger.info(
+                    f"[X_PULSE_STEP1] {session_id} - Keyword extraction SUCCESS | "
+                    f"Time: {step_time}ms | "
+                    f"Keywords: {keywords}"
+                )
+            else:
+                self.logger.error(
+                    f"[X_PULSE_STEP1] {session_id} - Keyword extraction FAILED | "
+                    f"Time: {step_time}ms | "
+                    f"Error: {keyword_result.error}"
+                )
+                # Return early if keyword extraction fails
+                return results
+                
+        except Exception as e:
+            self.logger.error(f"[X_PULSE_STEP1] {session_id} - Exception in keyword extraction: {str(e)}")
+            results.append(AgentResult(success=False, error=str(e), agent_name="KeywordExtractorAgent"))
             return results
         
         # Step 2: Search X with extracted keywords
@@ -263,27 +270,34 @@ class XPulseAgent(NestedAgent):
             f"Keywords: {search_context['keywords']}"
         )
         
-        search_result = await self.sub_agents[1].execute(search_context)
-        results.append(search_result)
+        try:
+            search_result = await self.sub_agents[1].execute(search_context)
+            results.append(search_result)
+            
+            step_time = int((datetime.now() - step_start).total_seconds() * 1000)
+            
+            if search_result.success:
+                posts_count = len(search_result.data.get('posts', []))
+                self.logger.info(
+                    f"[X_PULSE_STEP2] {session_id} - X search SUCCESS | "
+                    f"Time: {step_time}ms | "
+                    f"Posts found: {posts_count}"
+                )
+            else:
+                self.logger.error(
+                    f"[X_PULSE_STEP2] {session_id} - X search FAILED | "
+                    f"Time: {step_time}ms | "
+                    f"Error: {search_result.error}"
+                )
+                # Continue with empty posts for analysis
+                search_result.data = {'posts': []}
+                
+        except Exception as e:
+            self.logger.error(f"[X_PULSE_STEP2] {session_id} - Exception in X search: {str(e)}")
+            search_result = AgentResult(success=False, error=str(e), agent_name="XSearchAgent", data={'posts': []})
+            results.append(search_result)
         
-        step_time = int((datetime.now() - step_start).total_seconds() * 1000)
-        
-        if search_result.success:
-            posts_count = len(search_result.data.get('posts', []))
-            self.logger.info(
-                f"[X_PULSE_STEP2] {session_id} - X search SUCCESS | "
-                f"Time: {step_time}ms | "
-                f"Posts found: {posts_count}"
-            )
-        else:
-            self.logger.error(
-                f"[X_PULSE_STEP2] {session_id} - X search FAILED | "
-                f"Time: {step_time}ms | "
-                f"Error: {search_result.error}"
-            )
-            return results
-        
-        # Step 3 & 4: Analyze themes and sentiment in parallel
+        # Steps 3 & 4: Analyze themes and sentiment in parallel (optimized)
         parallel_start = datetime.now()
         posts_context = {
             **context,
@@ -295,32 +309,58 @@ class XPulseAgent(NestedAgent):
             f"Posts to analyze: {len(posts_context['posts'])}"
         )
         
-        theme_task = self.sub_agents[2].execute(posts_context)
-        sentiment_task = self.sub_agents[3].execute(posts_context)
-        
-        theme_result, sentiment_result = await asyncio.gather(theme_task, sentiment_task)
-        results.extend([theme_result, sentiment_result])
-        
-        parallel_time = int((datetime.now() - parallel_start).total_seconds() * 1000)
-        total_time = int((datetime.now() - orchestration_start).total_seconds() * 1000)
-        
-        # Log parallel execution results
-        theme_status = "SUCCESS" if theme_result.success else f"FAILED: {theme_result.error}"
-        sentiment_status = "SUCCESS" if sentiment_result.success else f"FAILED: {sentiment_result.error}"
-        
-        themes_count = len(theme_result.data.get('themes', [])) if theme_result.success else 0
-        sentiment_count = len(sentiment_result.data.get('sentiment_analysis', [])) if sentiment_result.success else 0
-        
-        self.logger.info(
-            f"[X_PULSE_PARALLEL] {session_id} - Parallel analysis COMPLETED | "
-            f"Time: {parallel_time}ms | "
-            f"Theme analysis: {theme_status} ({themes_count} themes) | "
-            f"Sentiment analysis: {sentiment_status} ({sentiment_count} sentiments)"
-        )
+        try:
+            # Execute theme and sentiment analysis concurrently
+            theme_task = self.sub_agents[2].execute(posts_context)
+            sentiment_task = self.sub_agents[3].execute(posts_context)
+            
+            # Use enhanced gather with better error handling
+            parallel_results = await self.gather_with_error_handling(theme_task, sentiment_task)
+            
+            # Process results with proper exception handling
+            theme_result = parallel_results[0]
+            sentiment_result = parallel_results[1]
+            
+            # Handle theme result
+            if isinstance(theme_result, Exception):
+                self.logger.error(f"[X_PULSE_PARALLEL] {session_id} - Theme analysis exception: {str(theme_result)}")
+                theme_result = AgentResult(success=False, error=str(theme_result), agent_name="ThemeAnalyzerAgent")
+            
+            # Handle sentiment result  
+            if isinstance(sentiment_result, Exception):
+                self.logger.error(f"[X_PULSE_PARALLEL] {session_id} - Sentiment analysis exception: {str(sentiment_result)}")
+                sentiment_result = AgentResult(success=False, error=str(sentiment_result), agent_name="SentimentAnalyzerAgent")
+            
+            results.extend([theme_result, sentiment_result])
+            
+            parallel_time = int((datetime.now() - parallel_start).total_seconds() * 1000)
+            total_time = int((datetime.now() - orchestration_start).total_seconds() * 1000)
+            
+            # Log parallel execution results
+            theme_status = "SUCCESS" if theme_result.success else f"FAILED: {theme_result.error}"
+            sentiment_status = "SUCCESS" if sentiment_result.success else f"FAILED: {sentiment_result.error}"
+            
+            themes_count = len(theme_result.data.get('themes', [])) if theme_result.success else 0
+            sentiment_count = len(sentiment_result.data.get('sentiment_analysis', [])) if sentiment_result.success else 0
+            
+            self.logger.info(
+                f"[X_PULSE_PARALLEL] {session_id} - Parallel analysis COMPLETED | "
+                f"Time: {parallel_time}ms | "
+                f"Theme analysis: {theme_status} ({themes_count} themes) | "
+                f"Sentiment analysis: {sentiment_status} ({sentiment_count} sentiments)"
+            )
+            
+        except Exception as e:
+            # Fallback if parallel execution fails entirely
+            self.logger.error(f"[X_PULSE_PARALLEL] {session_id} - Parallel execution failed: {str(e)}")
+            theme_result = AgentResult(success=False, error=f"Parallel execution failed: {str(e)}", agent_name="ThemeAnalyzerAgent")
+            sentiment_result = AgentResult(success=False, error=f"Parallel execution failed: {str(e)}", agent_name="SentimentAnalyzerAgent")
+            results.extend([theme_result, sentiment_result])
         
         # Final orchestration summary
         successful_steps = sum(1 for r in results if r.success)
         total_tokens = sum(r.tokens_used or 0 for r in results)
+        total_time = int((datetime.now() - orchestration_start).total_seconds() * 1000)
         
         self.logger.info(
             f"[X_PULSE_ORCHESTRATION] {session_id} - COMPLETED | "
@@ -377,9 +417,9 @@ Provide a 2-3 sentence overall summary of the X discourse in Greek.
 Focus on the main trends and public sentiment."""
         
         try:
-            response = await self.grok_client.create_completion(
-                messages=[{"role": "user", "content": summary_prompt}],
-                model=model.value
+            response = await self.grok_client.async_client.chat.completions.create(
+                model=model.value,
+                messages=[{"role": "user", "content": summary_prompt}]
             )
             
             summary = response.choices[0].message.content

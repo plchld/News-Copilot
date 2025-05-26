@@ -26,8 +26,20 @@ def web_augment_stream():
     # Stream the analysis using server's API key
     def generate():
         try:
-            for chunk in analysis_handler.get_augmentations_stream(article_url):
+            import asyncio
+            
+            # Handle async generator properly
+            async def collect_chunks():
+                chunks = []
+                async for chunk in analysis_handler.get_augmentations_stream(article_url):
+                    chunks.append(chunk)
+                return chunks
+            
+            # Run async generator and yield chunks
+            chunks = asyncio.run(collect_chunks())
+            for chunk in chunks:
                 yield chunk
+                
         except GeneratorExit:
             # Client disconnected
             pass
@@ -118,6 +130,16 @@ def serve_web_app():
     import os
     static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
     return send_from_directory(static_dir, 'web-app.html')
+
+
+@web_bp.route('/debug')
+@web_bp.route('/debug/')
+def serve_debug_page():
+    """Serve the debug interface HTML"""
+    from flask import send_from_directory
+    import os
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'static')
+    return send_from_directory(static_dir, 'debug.html')
 
 
 @web_bp.route('/')

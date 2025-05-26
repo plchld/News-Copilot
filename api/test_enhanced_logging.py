@@ -18,7 +18,7 @@ logging.basicConfig(
 
 # Import agent modules
 try:
-    from agents.coordinator import AgentCoordinator, AnalysisType, CoordinatorConfig
+    from agents.optimized_coordinator import OptimizedAgentCoordinator as AgentCoordinator, AnalysisType, OptimizedCoordinatorConfig as CoordinatorConfig
     from grok_client import GrokClient
 except ImportError as e:
     print(f"Import error: {e}")

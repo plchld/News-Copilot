@@ -12,7 +12,7 @@ from datetime import datetime
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from openai import AsyncOpenAI
-from agents.coordinator import AgentCoordinator, AnalysisType, CoordinatorConfig
+from agents.optimized_coordinator import OptimizedAgentCoordinator as AgentCoordinator, AnalysisType, OptimizedCoordinatorConfig as CoordinatorConfig
 from agents.base_agent import AgentResult
 
 

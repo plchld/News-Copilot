@@ -66,10 +66,10 @@ class AnalysisHandler:
         self.grok_client = GrokClient()
         # Initialize agent coordinator for concurrent execution
         try:
-            from .agents.coordinator import AgentCoordinator, CoordinatorConfig
+            from .agents.optimized_coordinator import OptimizedAgentCoordinator as AgentCoordinator, OptimizedCoordinatorConfig as CoordinatorConfig
         except ImportError:
             # Fallback for direct execution
-            from agents.coordinator import AgentCoordinator, CoordinatorConfig
+            from agents.optimized_coordinator import OptimizedAgentCoordinator as AgentCoordinator, OptimizedCoordinatorConfig as CoordinatorConfig
         config = CoordinatorConfig(
             max_parallel_agents=4,  # Allow concurrent execution
             enable_streaming=False,  # We handle streaming at this level
@@ -81,9 +81,9 @@ class AnalysisHandler:
     async def _run_concurrent_analysis(self, article_url: str, article_text: str, context: Dict[str, Any]) -> Dict:
         """Helper method to run concurrent analysis"""
         try:
-            from .agents.coordinator import AnalysisType
+            from .agents.optimized_coordinator import AnalysisType
         except ImportError:
-            from agents.coordinator import AnalysisType
+            from agents.optimized_coordinator import AnalysisType
         
         return await self.coordinator.analyze_article(
             article_url=article_url,
@@ -150,9 +150,9 @@ class AnalysisHandler:
             
             # Import agent types
             try:
-                from .agents.coordinator import AnalysisType
+                from .agents.optimized_coordinator import AnalysisType
             except ImportError:
-                from agents.coordinator import AnalysisType
+                from agents.optimized_coordinator import AnalysisType
             
             # Build context for agents
             context = {

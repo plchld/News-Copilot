@@ -1,5 +1,6 @@
 """Alternative Viewpoints Agent - Finds different perspectives on the same story"""
 
+import json
 from typing import Dict, Any, Optional
 from .base_agent import AnalysisAgent, AgentConfig, ModelType, ComplexityLevel
 
@@ -23,7 +24,7 @@ class ViewpointsAgent(AnalysisAgent):
         return cls(
             config=config,
             grok_client=grok_client,
-            prompt_builder=cls._build_viewpoints_prompt,
+            prompt_builder=lambda context: "",  # Not used since we have _build_custom_prompt
             schema_builder=lambda: {
                 "type": "object",
                 "properties": {
@@ -34,15 +35,6 @@ class ViewpointsAgent(AnalysisAgent):
                 }
             }
         )
-    
-    @staticmethod
-    def _build_viewpoints_prompt(context: Dict[str, Any]) -> str:
-        """Build optimized prompt for finding alternative viewpoints"""
-        # The full article text is passed via the user message in base_agent
-        return """Find other credible news articles covering the SAME story.
-Summarize in 4-8 bullet points how their coverage differs or adds to the original story.
-Mention new facts, different perspectives, missing details, or conflicting statements.
-ALL output must be in GREEK. Include source citations."""
     
     def _build_search_params(self, context: Dict[str, Any]) -> Optional[Dict]:
         """Build search parameters for finding alternative viewpoints"""
@@ -66,32 +58,9 @@ ALL output must be in GREEK. Include source citations."""
             max_results=20
         )
     
-    async def _call_grok(self, prompt: str, schema: Dict, model: ModelType,
-                        search_params: Optional[Dict], context: Dict) -> Dict:
-        """Call Grok API for viewpoints analysis"""
-        try:
-            # Use the prompt from prompts.py
-            system_prompt = GROK_ALTERNATIVE_VIEWPOINTS_PROMPT + f"\n\nArticle:\n{context['article_text']}"
-            
-            response = await self.grok_client.create_completion(
-                messages=[{"role": "user", "content": "Find alternative viewpoints for this article"}],
-                system=system_prompt,
-                response_format={"type": "json_object", "schema": schema},
-                search_parameters=search_params,
-                model=model.value
-            )
-            
-            result = response.choices[0].message.content
-            tokens_used = response.usage.total_tokens if hasattr(response, 'usage') else 0
-            
-            return {
-                'data': result,
-                'tokens_used': tokens_used
-            }
-            
-        except Exception as e:
-            self.logger.error(f"Grok API error in ViewpointsAgent: {str(e)}")
-            raise
+    def _build_custom_prompt(self, context: Dict[str, Any]) -> str:
+        """Build the complete prompt including the article for viewpoints analysis"""
+        return GROK_ALTERNATIVE_VIEWPOINTS_PROMPT + f"\n\nArticle:\n{context['article_text']}"
 
 
 # Import the prompt from prompts.py
