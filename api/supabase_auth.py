@@ -98,9 +98,17 @@ def get_usage_stats(user_id: str) -> Dict:
         usage = {'basic_analysis': 0, 'deep_analysis': 0}
         for log in response.data:
             analysis_type = log.get('analysis_type', 'basic_analysis')
-            if analysis_type in ['jargon', 'viewpoints']:
+            # Basic analysis includes the augment-stream endpoint (jargon + viewpoints)
+            if analysis_type == 'basic_analysis':
+                usage['basic_analysis'] += 1
+            # Deep analysis includes all the specific analysis types
+            elif analysis_type in ['fact-check', 'bias', 'timeline', 'expert', 'x-pulse']:
+                usage['deep_analysis'] += 1
+            # Legacy support for old analysis types
+            elif analysis_type in ['jargon', 'viewpoints']:
                 usage['basic_analysis'] += 1
             else:
+                # Default to deep analysis for unknown types
                 usage['deep_analysis'] += 1
         
         return usage

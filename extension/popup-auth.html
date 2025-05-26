@@ -198,6 +198,61 @@
             text-align: right;
         }
         
+        .usage-hint {
+            font-size: 10px;
+            color: #999;
+            font-weight: normal;
+        }
+        
+        .usage-note {
+            margin-top: 15px;
+            text-align: center;
+            color: #999;
+            font-size: 11px;
+        }
+        
+        .usage-bar-fill.warning {
+            background: #ffc107;
+        }
+        
+        .usage-bar-fill.danger {
+            background: #dc3545;
+        }
+        
+        .refresh-button {
+            float: right;
+            font-size: 11px;
+            color: #1c7ed6;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            margin-top: -2px;
+        }
+        
+        .refresh-button:hover {
+            text-decoration: underline;
+        }
+        
+        .tier-info {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .upgrade-link {
+            color: #1c7ed6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .upgrade-link:hover {
+            text-decoration: underline;
+        }
+        
         .logout-button {
             width: 100%;
             padding: 8px;
@@ -234,7 +289,7 @@
         <!-- Loading View -->
         <div id="loadingView" class="loading-view">
             <div class="spinner"></div>
-            <p>Έλεγχος σύνδεσης...</p>
+            <p id="loadingText">🔐 Έλεγχος σύνδεσης...</p>
         </div>
         
         <!-- Login View -->
@@ -283,22 +338,39 @@
             </div>
             
             <div class="usage-section">
-                <h3 class="usage-title">Μηνιαία Χρήση</h3>
+                <h3 class="usage-title">
+                    Μηνιαία Χρήση
+                    <button id="refreshButton" class="refresh-button" title="Ανανέωση στατιστικών">↻</button>
+                </h3>
                 
                 <div class="usage-item">
-                    <div class="usage-label">Βασικές Αναλύσεις</div>
+                    <div class="usage-label">
+                        Βασικές Αναλύσεις
+                        <span class="usage-hint">(Όροι & Απόψεις)</span>
+                    </div>
                     <div class="usage-bar">
                         <div class="usage-bar-fill" id="basicUsageBar" style="width: 0%"></div>
                     </div>
                     <div class="usage-text" id="basicUsage">0 / 10</div>
                 </div>
                 
-                <div class="usage-item">
-                    <div class="usage-label">Εξειδικευμένες Αναλύσεις</div>
+                <div class="usage-item" id="deepUsageItem">
+                    <div class="usage-label">
+                        Εξειδικευμένες Αναλύσεις
+                        <span class="usage-hint">(Fact-check, Bias, Timeline, Expert, X Pulse)</span>
+                    </div>
                     <div class="usage-bar">
                         <div class="usage-bar-fill" id="deepUsageBar" style="width: 0%"></div>
                     </div>
-                    <div class="usage-text" id="deepUsage">0 / 5</div>
+                    <div class="usage-text" id="deepUsage">0 / 0</div>
+                </div>
+                
+                <div class="usage-note" id="usageNote">
+                    <small>Τα όρια ανανεώνονται την 1η κάθε μήνα</small>
+                </div>
+                
+                <div class="tier-info hidden" id="tierInfo">
+                    <!-- Dynamic tier information will be inserted here -->
                 </div>
             </div>
             

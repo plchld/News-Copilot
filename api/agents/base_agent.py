@@ -176,7 +176,13 @@ class AnalysisAgent(BaseAgent):
             # Check if we have conversation history (for refinements)
             conversation_history = context.get('conversation_history', [])
             
+            # Track if this is a refinement call (for rate limiting purposes)
+            is_refinement = bool(conversation_history)
+            
             if conversation_history:
+                # This is a refinement call - should NOT count against rate limits
+                self.logger.info(f"Making refinement call for {self.config.name} (not counted for rate limits)")
+                
                 # Use chat completion with history
                 messages = [
                     {"role": "system", "content": prompt}

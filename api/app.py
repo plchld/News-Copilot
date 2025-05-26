@@ -17,6 +17,11 @@ def create_app():
     # Register main routes blueprint
     app.register_blueprint(main_bp)
     
+    # Register web routes (no auth required)
+    from .web_routes import web_bp
+    app.register_blueprint(web_bp)
+    print("✅ Web routes enabled (no auth required)")
+    
     # Import and register auth blueprints if available
     try:
         from .http_supabase import http_supabase_bp

@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Copilot - Κατανόηση Ειδήσεων με AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            color: #2c3e50;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        .input-section {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px;
+        }
+
+        .url-input-wrapper {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .url-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .url-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .analyze-btn {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .analyze-btn:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .supported-sites {
+            text-align: center;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .supported-sites a {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        .analysis-container {
+            display: none;
+            gap: 20px;
+        }
+
+        .analysis-tabs {
+            background: white;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: #ecf0f1;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab-btn.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: #d5dbdb;
+        }
+
+        .tab-btn.loading::after {
+            content: '⋯';
+            position: absolute;
+            right: 5px;
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '⋯'; }
+            40% { content: '⋯⋯'; }
+            60%, 100% { content: '⋯⋯⋯'; }
+        }
+
+        .analysis-content {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 30px;
+            min-height: 300px;
+            position: relative;
+        }
+
+        .progress-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        .analysis-section {
+            display: none;
+        }
+
+        .analysis-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .loading-spinner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .success-message {
+            background: #efe;
+            color: #3c3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        /* Analysis result styles */
+        .jargon-term {
+            background: #e3f2fd;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #2196f3;
+        }
+
+        .jargon-term strong {
+            color: #1976d2;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .viewpoint-item {
+            background: #f3e5f5;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #9c27b0;
+        }
+
+        .fact-check-item {
+            background: #fff3e0;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #ff9800;
+        }
+
+        .fact-check-item .credibility {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .credibility.high { background: #4caf50; color: white; }
+        .credibility.medium { background: #ff9800; color: white; }
+        .credibility.low { background: #f44336; color: white; }
+
+        .timeline-event {
+            position: relative;
+            padding-left: 30px;
+            margin-bottom: 20px;
+        }
+
+        .timeline-event::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 8px;
+            width: 10px;
+            height: 10px;
+            background: #3498db;
+            border-radius: 50%;
+        }
+
+        .timeline-event::after {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 18px;
+            width: 2px;
+            height: calc(100% + 10px);
+            background: #e0e0e0;
+        }
+
+        .timeline-event:last-child::after {
+            display: none;
+        }
+
+        .expert-quote {
+            background: #e8f5e9;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #4caf50;
+            font-style: italic;
+        }
+
+        .expert-quote cite {
+            display: block;
+            margin-top: 10px;
+            font-style: normal;
+            font-weight: 600;
+            color: #2e7d32;
+        }
+
+        .bias-meter {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .bias-scale {
+            display: flex;
+            justify-content: space-between;
+            margin: 20px 0;
+            position: relative;
+            height: 40px;
+            background: linear-gradient(to right, #f44336, #ff9800, #ffeb3b, #8bc34a, #2196f3);
+            border-radius: 20px;
+        }
+
+        .bias-indicator {
+            position: absolute;
+            top: -10px;
+            width: 20px;
+            height: 60px;
+            background: #333;
+            border-radius: 10px;
+            transition: left 0.5s ease;
+        }
+
+        .pulse-chart {
+            background: #fafafa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .sentiment-bar {
+            display: flex;
+            height: 30px;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .sentiment-positive { background: #4caf50; }
+        .sentiment-neutral { background: #9e9e9e; }
+        .sentiment-negative { background: #f44336; }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            h1 { font-size: 2rem; }
+            .subtitle { font-size: 1rem; }
+            .url-input-wrapper { flex-direction: column; }
+            .analyze-btn { width: 100%; }
+            .tab-buttons { justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📰 News Copilot</h1>
+            <p class="subtitle">Κατανοήστε τις ειδήσεις σε βάθος με τη δύναμη της AI</p>
+        </header>
+
+        <div class="input-section">
+            <div class="url-input-wrapper">
+                <input 
+                    type="url" 
+                    class="url-input" 
+                    id="articleUrl" 
+                    placeholder="Επικολλήστε το link του άρθρου εδώ..."
+                    value=""
+                >
+                <button class="analyze-btn" id="analyzeBtn" onclick="analyzeArticle()">
+                    Ανάλυση Άρθρου
+                </button>
+            </div>
+            <p class="supported-sites">
+                Υποστηρίζουμε 50+ ελληνικά ειδησεογραφικά sites - 
+                <a href="#" onclick="showSupportedSites()">Δείτε τη λίστα</a>
+            </p>
+            <div class="error-message" id="errorMessage"></div>
+            <div class="success-message" id="successMessage"></div>
+        </div>
+
+        <div class="analysis-container" id="analysisContainer">
+            <div class="analysis-tabs">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" onclick="switchTab('jargon')" data-tab="jargon">
+                        📚 Όροι & Εξηγήσεις
+                    </button>
+                    <button class="tab-btn" onclick="switchTab('viewpoints')" data-tab="viewpoints">
+                        🔄 Εναλλακτικές Οπτικές
+                    </button>
+                    <button class="tab-btn" onclick="loadDeepAnalysis('fact-check')" data-tab="fact-check">
+                        ✓ Fact Check
+                    </button>
+                    <button class="tab-btn" onclick="loadDeepAnalysis('bias')" data-tab="bias">
+                        ⚖️ Ανάλυση Μεροληψίας
+                    </button>
+                    <button class="tab-btn" onclick="loadDeepAnalysis('timeline')" data-tab="timeline">
+                        📅 Χρονολόγιο
+                    </button>
+                    <button class="tab-btn" onclick="loadDeepAnalysis('expert')" data-tab="expert">
+                        🎓 Απόψεις Ειδικών
+                    </button>
+                    <button class="tab-btn" onclick="loadDeepAnalysis('x-pulse')" data-tab="x-pulse">
+                        𝕏 X Pulse
+                    </button>
+                </div>
+
+                <div class="analysis-content">
+                    <div class="progress-indicator" id="progressIndicator"></div>
+                    <div class="analysis-section active" id="jargon">
+                        <div class="loading-spinner">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                    <div class="analysis-section" id="viewpoints">
+                        <div class="loading-spinner">
+                            <div class="spinner"></div>
+                        </div>
+                    </div>
+                    <div class="analysis-section" id="fact-check"></div>
+                    <div class="analysis-section" id="bias"></div>
+                    <div class="analysis-section" id="timeline"></div>
+                    <div class="analysis-section" id="expert"></div>
+                    <div class="analysis-section" id="x-pulse"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_URL = window.location.hostname === 'localhost' 
+            ? 'http://localhost:8080' 
+            : 'https://news-copilot.vercel.app';
+        let currentArticleUrl = '';
+        let basicAnalysisData = {};
+
+        // Utility functions
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            setTimeout(() => errorEl.style.display = 'none', 5000);
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('successMessage');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+            setTimeout(() => successEl.style.display = 'none', 3000);
+        }
+
+        function showLoading(tabId) {
+            const section = document.getElementById(tabId);
+            section.innerHTML = `
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                </div>
+            `;
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                if (btn.dataset.tab === tabName) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Update content sections
+            document.querySelectorAll('.analysis-section').forEach(section => {
+                if (section.id === tabName) {
+                    section.classList.add('active');
+                } else {
+                    section.classList.remove('active');
+                }
+            });
+        }
+
+        // Main analysis function
+        async function analyzeArticle() {
+            const urlInput = document.getElementById('articleUrl');
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                showError('Παρακαλώ εισάγετε ένα URL άρθρου');
+                return;
+            }
+
+            // Validate URL
+            try {
+                new URL(url);
+            } catch {
+                showError('Παρακαλώ εισάγετε ένα έγκυρο URL');
+                return;
+            }
+
+            currentArticleUrl = url;
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = 'Αναλύω...';
+
+            // Show analysis container
+            document.getElementById('analysisContainer').style.display = 'block';
+
+            // Reset tabs
+            switchTab('jargon');
+            showLoading('jargon');
+            showLoading('viewpoints');
+
+            try {
+                // Use EventSource for SSE with web endpoint (no auth)
+                const eventSource = new EventSource(`${API_URL}/web/augment-stream?url=${encodeURIComponent(url)}`);
+
+                // Track if we've received the final result
+                let hasReceivedFinalResult = false;
+
+                eventSource.addEventListener('progress', (event) => {
+                    const data = JSON.parse(event.data);
+                    showProgress(data.status);
+                });
+
+                eventSource.addEventListener('jargon', (event) => {
+                    const data = JSON.parse(event.data);
+                    basicAnalysisData.jargon = data;
+                    renderJargon(data);
+                });
+
+                eventSource.addEventListener('viewpoints', (event) => {
+                    const data = JSON.parse(event.data);
+                    basicAnalysisData.viewpoints = data;
+                    renderViewpoints(data);
+                });
+
+                eventSource.addEventListener('final_result', (event) => {
+                    const data = JSON.parse(event.data);
+                    hasReceivedFinalResult = true;
+                    
+                    // Handle jargon data
+                    if (data.jargon) {
+                        basicAnalysisData.jargon = data.jargon;
+                        renderJargon(data.jargon);
+                    }
+                    
+                    // Handle viewpoints data - parse if it's a string
+                    if (data.viewpoints) {
+                        let viewpointsData = data.viewpoints;
+                        if (typeof viewpointsData === 'string') {
+                            try {
+                                viewpointsData = JSON.parse(viewpointsData);
+                            } catch (e) {
+                                console.error('Failed to parse viewpoints:', e);
+                            }
+                        }
+                        basicAnalysisData.viewpoints = viewpointsData;
+                        renderViewpoints(viewpointsData);
+                    }
+                    
+                    eventSource.close();
+                    analyzeBtn.disabled = false;
+                    analyzeBtn.textContent = 'Ανάλυση Άρθρου';
+                    showSuccess('Η βασική ανάλυση ολοκληρώθηκε!');
+                });
+
+                eventSource.addEventListener('error', (event) => {
+                    eventSource.close();
+                    analyzeBtn.disabled = false;
+                    analyzeBtn.textContent = 'Ανάλυση Άρθρου';
+                    let errorMsg = 'Σφάλμα κατά την ανάλυση';
+                    try {
+                        const errorData = JSON.parse(event.data);
+                        errorMsg = errorData.message || errorMsg;
+                    } catch (e) {}
+                    showError(errorMsg);
+                });
+
+                eventSource.onerror = (error) => {
+                    console.error('EventSource error:', error);
+                    // Only show error if we haven't received the final result
+                    if (!hasReceivedFinalResult) {
+                        eventSource.close();
+                        analyzeBtn.disabled = false;
+                        analyzeBtn.textContent = 'Ανάλυση Άρθρου';
+                        showError('Σφάλμα σύνδεσης - παρακαλώ δοκιμάστε ξανά');
+                    }
+                };
+
+            } catch (error) {
+                analyzeBtn.disabled = false;
+                analyzeBtn.textContent = 'Ανάλυση Άρθρου';
+                showError('Σφάλμα: ' + error.message);
+            }
+        }
+
+        // Deep analysis loading
+        async function loadDeepAnalysis(analysisType) {
+            if (!currentArticleUrl) {
+                showError('Παρακαλώ αναλύστε πρώτα ένα άρθρο');
+                return;
+            }
+
+            const tabBtn = document.querySelector(`[data-tab="${analysisType}"]`);
+            if (tabBtn.classList.contains('loading')) return;
+
+            switchTab(analysisType);
+            showLoading(analysisType);
+            tabBtn.classList.add('loading');
+
+            try {
+                const response = await fetch(`${API_URL}/web/deep-analysis`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        url: currentArticleUrl,
+                        analysis_type: analysisType
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Σφάλμα στην ανάλυση');
+                }
+
+                // Render the analysis
+                switch (analysisType) {
+                    case 'fact-check':
+                        renderFactCheck(data.result);
+                        break;
+                    case 'bias':
+                        renderBias(data.result);
+                        break;
+                    case 'timeline':
+                        renderTimeline(data.result);
+                        break;
+                    case 'expert':
+                        renderExpert(data.result);
+                        break;
+                    case 'x-pulse':
+                        renderXPulse(data.result);
+                        break;
+                }
+
+            } catch (error) {
+                document.getElementById(analysisType).innerHTML = `
+                    <div style="color: #e74c3c; text-align: center; padding: 20px;">
+                        Σφάλμα: ${error.message}
+                    </div>
+                `;
+            } finally {
+                tabBtn.classList.remove('loading');
+            }
+        }
+
+        // Rendering functions
+        function renderJargon(data) {
+            const container = document.getElementById('jargon');
+            if (!data.terms || data.terms.length === 0) {
+                container.innerHTML = '<p>Δεν βρέθηκαν όροι προς εξήγηση.</p>';
+                return;
+            }
+
+            container.innerHTML = data.terms.map(term => `
+                <div class="jargon-term">
+                    <strong>${term.term}</strong>
+                    ${term.explanation}
+                </div>
+            `).join('');
+        }
+
+        function renderViewpoints(data) {
+            const container = document.getElementById('viewpoints');
+            if (!data.viewpoints || data.viewpoints.length === 0) {
+                container.innerHTML = '<p>Δεν βρέθηκαν εναλλακτικές οπτικές.</p>';
+                return;
+            }
+
+            container.innerHTML = data.viewpoints.map(vp => `
+                <div class="viewpoint-item">
+                    <strong>${vp.perspective}</strong>
+                    <p>${vp.argument}</p>
+                    ${vp.source ? `<small>Πηγή: ${vp.source}</small>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderFactCheck(data) {
+            const container = document.getElementById('fact-check');
+            if (!data.claims || data.claims.length === 0) {
+                container.innerHTML = '<p>Δεν βρέθηκαν ισχυρισμοί προς επαλήθευση.</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="fact-check-summary">
+                    <p><strong>Συνολική Αξιοπιστία:</strong> ${data.overall_credibility}/10</p>
+                </div>
+                ${data.claims.map(claim => `
+                    <div class="fact-check-item">
+                        <p><strong>Ισχυρισμός:</strong> ${claim.claim}</p>
+                        <p><strong>Επαλήθευση:</strong> ${claim.verification}</p>
+                        <span class="credibility ${getCredibilityClass(claim.credibility)}">
+                            Αξιοπιστία: ${claim.credibility}/10
+                        </span>
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        function renderBias(data) {
+            const container = document.getElementById('bias');
+            const biasPosition = ((data.position + 5) / 10) * 100; // Convert -5 to 5 scale to percentage
+
+            container.innerHTML = `
+                <div class="bias-meter">
+                    <h3>Θέση στο Πολιτικό Φάσμα</h3>
+                    <div class="bias-scale">
+                        <div class="bias-indicator" style="left: ${biasPosition}%"></div>
+                    </div>
+                    <p><strong>Τάση:</strong> ${data.leaning}</p>
+                    <p><strong>Βαθμός:</strong> ${data.position}</p>
+                    <p><strong>Ανάλυση:</strong> ${data.analysis}</p>
+                    ${data.indicators ? `
+                        <p><strong>Ενδείξεις:</strong></p>
+                        <ul>
+                            ${data.indicators.map(ind => `<li>${ind}</li>`).join('')}
+                        </ul>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderTimeline(data) {
+            const container = document.getElementById('timeline');
+            if (!data.events || data.events.length === 0) {
+                container.innerHTML = '<p>Δεν βρέθηκαν χρονολογικά γεγονότα.</p>';
+                return;
+            }
+
+            container.innerHTML = `
+                <h3>Χρονολόγιο Γεγονότων</h3>
+                ${data.events.map(event => `
+                    <div class="timeline-event">
+                        <strong>${event.date}</strong>
+                        <p>${event.description}</p>
+                        ${event.significance ? `<small><em>${event.significance}</em></small>` : ''}
+                    </div>
+                `).join('')}
+            `;
+        }
+
+        function renderExpert(data) {
+            const container = document.getElementById('expert');
+            if (!data.opinions || data.opinions.length === 0) {
+                container.innerHTML = '<p>Δεν βρέθηκαν απόψεις ειδικών.</p>';
+                return;
+            }
+
+            container.innerHTML = data.opinions.map(opinion => `
+                <div class="expert-quote">
+                    <p>"${opinion.quote}"</p>
+                    <cite>${opinion.expert} - ${opinion.credentials}</cite>
+                    ${opinion.context ? `<small>${opinion.context}</small>` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderXPulse(data) {
+            const container = document.getElementById('x-pulse');
+            
+            // Calculate sentiment percentages
+            const totalSentiment = (data.sentiment?.positive || 0) + 
+                                 (data.sentiment?.neutral || 0) + 
+                                 (data.sentiment?.negative || 0);
+            
+            const sentimentPercentages = {
+                positive: totalSentiment ? ((data.sentiment?.positive || 0) / totalSentiment * 100) : 0,
+                neutral: totalSentiment ? ((data.sentiment?.neutral || 0) / totalSentiment * 100) : 0,
+                negative: totalSentiment ? ((data.sentiment?.negative || 0) / totalSentiment * 100) : 0
+            };
+
+            container.innerHTML = `
+                <div class="pulse-chart">
+                    <h3>X (Twitter) Pulse Analysis</h3>
+                    
+                    ${data.themes ? `
+                        <div style="margin-bottom: 20px;">
+                            <h4>🎯 Κύρια Θέματα</h4>
+                            <ul>
+                                ${data.themes.map(theme => `<li>${theme}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.sentiment ? `
+                        <div style="margin-bottom: 20px;">
+                            <h4>💭 Συναίσθημα</h4>
+                            <div class="sentiment-bar">
+                                <div class="sentiment-positive" style="width: ${sentimentPercentages.positive}%"></div>
+                                <div class="sentiment-neutral" style="width: ${sentimentPercentages.neutral}%"></div>
+                                <div class="sentiment-negative" style="width: ${sentimentPercentages.negative}%"></div>
+                            </div>
+                            <p>Θετικό: ${sentimentPercentages.positive.toFixed(0)}% | 
+                               Ουδέτερο: ${sentimentPercentages.neutral.toFixed(0)}% | 
+                               Αρνητικό: ${sentimentPercentages.negative.toFixed(0)}%</p>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.influencers ? `
+                        <div style="margin-bottom: 20px;">
+                            <h4>👥 Επιδραστικές Φωνές</h4>
+                            ${data.influencers.map(inf => `
+                                <p><strong>@${inf.username}</strong>: "${inf.stance}"</p>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${data.misinformation ? `
+                        <div style="margin-bottom: 20px;">
+                            <h4>⚠️ Παραπληροφόρηση</h4>
+                            ${data.misinformation.map(mis => `
+                                <p style="background: #fee; padding: 10px; border-radius: 5px;">
+                                    <strong>Ισχυρισμός:</strong> ${mis.claim}<br>
+                                    <strong>Διόρθωση:</strong> ${mis.correction}
+                                </p>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${data.public_concerns ? `
+                        <div>
+                            <h4>🤔 Ανησυχίες Κοινού</h4>
+                            <ul>
+                                ${data.public_concerns.map(concern => `<li>${concern}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function getCredibilityClass(credibility) {
+            if (credibility >= 7) return 'high';
+            if (credibility >= 4) return 'medium';
+            return 'low';
+        }
+
+        function showSupportedSites() {
+            alert(`Υποστηριζόμενα Sites:
+
+Κύρια Ειδησεογραφικά:
+• kathimerini.gr, tanea.gr, protothema.gr
+• skai.gr, tovima.gr, ethnos.gr, ant1news.gr
+
+Οικονομικά:
+• naftemporiki.gr, capital.gr
+
+Ψηφιακά Μέσα:
+• iefimerida.gr, newsbeast.gr, cnn.gr
+• newsbomb.gr, newsit.gr, in.gr
+
+Εναλλακτικά:
+• efsyn.gr, avgi.gr, documentonews.gr
+• liberal.gr, tvxs.gr
+
+...και πολλά άλλα!`);
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Allow Enter key to submit
+            document.getElementById('articleUrl').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    analyzeArticle();
+                }
+            });
+        });
+    </script>
+</body>
+</html>

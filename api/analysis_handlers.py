@@ -3,6 +3,7 @@ Analysis handlers module for News Copilot
 Contains the core analysis logic for different types of article analysis
 """
 import json
+import time
 from typing import Dict, Any, Generator, List
 from pydantic import BaseModel
 
@@ -57,16 +58,20 @@ class AnalysisHandler:
             Server-sent events with progress updates and results
         """
         print(f"[get_augmentations_stream] Starting for URL: {article_url}", flush=True)
-        yield self.stream_event("progress", {"status": "Initializing augmentation..."})
+        yield self.stream_event("progress", {"status": "🔍 Σύνδεση με την υπηρεσία AI..."})
+        
+        # Small delay for natural flow
+        time.sleep(1.5)
         
         # Fetch article text
         article_text = None
         try:
             print("[get_augmentations_stream] Calling fetch_text...", flush=True)
-            yield self.stream_event("progress", {"status": "Fetching article content..."})
+            yield self.stream_event("progress", {"status": "📄 Εξαγωγή περιεχομένου άρθρου..."})
             article_text = fetch_text(article_url)
             print(f"[get_augmentations_stream] fetch_text returned article_text (length: {len(article_text)})", flush=True)
-            yield self.stream_event("progress", {"status": f"Article content fetched ({len(article_text)} chars)."})
+            yield self.stream_event("progress", {"status": f"✅ Άρθρο εξήχθη επιτυχώς ({len(article_text)} χαρακτήρες)"})
+            time.sleep(1.0)  # Brief pause after extraction
         except RuntimeError as e:
             print(f"[get_augmentations_stream] ERROR from fetch_text: {e}", flush=True)
             yield self.stream_event("error", {"message": f"Error fetching article: {str(e)}"})
@@ -98,7 +103,7 @@ class AnalysisHandler:
         # Get jargon explanations
         try:
             print("[get_augmentations_stream] Preparing for Grok jargon call...", flush=True)
-            yield self.stream_event("progress", {"status": "Explaining terms and concepts..."})
+            yield self.stream_event("progress", {"status": "🔎 Εντοπισμός τεχνικών όρων..."})
             
             # Use proper prompt utilities
             from .prompt_utils import (
@@ -113,6 +118,9 @@ class AnalysisHandler:
             system_prompt = build_prompt(task_instruction, json_schema)
             system_prompt = inject_runtime_search_context(system_prompt, search_params)
             
+            yield self.stream_event("progress", {"status": "🧠 Ανάλυση κειμένου με Grok AI..."})
+            time.sleep(1.5)  # Give time for message to be read
+            
             jargon_completion = self.grok_client.create_completion(
                 prompt=system_prompt,
                 search_params=search_params,
@@ -126,7 +134,8 @@ class AnalysisHandler:
                 final_results["jargon"] = json.loads(jargon_completion.choices[0].message.content)
             
             final_results["jargon_citations"] = self.grok_client.extract_citations(jargon_completion)
-            yield self.stream_event("progress", {"status": "Terms explained."})
+            yield self.stream_event("progress", {"status": "✅ Όροι επεξηγήθηκαν επιτυχώς"})
+            time.sleep(1.0)
             
         except Exception as e:
             error_message = f"Error during jargon analysis: {type(e).__name__} - {e}"
@@ -137,7 +146,7 @@ class AnalysisHandler:
         # Get alternative viewpoints
         try:
             print("[get_augmentations_stream] Preparing for Grok viewpoints call...", flush=True)
-            yield self.stream_event("progress", {"status": "Finding alternative viewpoints..."})
+            yield self.stream_event("progress", {"status": "🌐 Αναζήτηση εναλλακτικών απόψεων..."})
             
             # Use proper prompt utilities
             from .prompt_utils import (
@@ -152,6 +161,9 @@ class AnalysisHandler:
             system_prompt = build_prompt(task_instruction, json_schema)
             system_prompt = inject_runtime_search_context(system_prompt, search_params)
             
+            yield self.stream_event("progress", {"status": "📚 Σύνθεση διαφορετικών οπτικών..."})
+            time.sleep(1.5)  # Give time for message to be read
+            
             viewpoints_completion = self.grok_client.create_completion(
                 prompt=system_prompt,
                 search_params=search_params,
@@ -164,7 +176,7 @@ class AnalysisHandler:
             final_results["viewpoints"] = viewpoints_completion.choices[0].message.content
             final_results["viewpoints_citations"] = self.grok_client.extract_citations(viewpoints_completion)
             
-            yield self.stream_event("progress", {"status": "Alternative viewpoints found."})
+            yield self.stream_event("progress", {"status": "✅ Εναλλακτικές απόψεις βρέθηκαν"})
             
         except Exception as e:
             error_message = f"Error during viewpoints analysis: {type(e).__name__} - {e}"
@@ -173,8 +185,9 @@ class AnalysisHandler:
             return
         
         print(f"[get_augmentations_stream] All tasks complete. Sending final results.", flush=True)
+        yield self.stream_event("progress", {"status": "✨ Προετοιμασία αποτελεσμάτων..."})
         yield self.stream_event("final_result", final_results)
-        yield self.stream_event("progress", {"status": "Done!"})
+        yield self.stream_event("progress", {"status": "✅ Ανάλυση ολοκληρώθηκε!"})
     
     def get_deep_analysis(self, article_url: str, analysis_type: str, search_params: Dict[str, Any]) -> Dict[str, Any]:
         """

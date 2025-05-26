@@ -31,6 +31,7 @@ class AuthManager {
         this.userEmail = document.getElementById('userEmail');
         this.tierName = document.getElementById('tierName');
         this.logoutButton = document.getElementById('logoutButton');
+        this.refreshButton = document.getElementById('refreshButton');
         
         // Usage elements
         this.basicUsage = document.getElementById('basicUsage');
@@ -43,6 +44,11 @@ class AuthManager {
         this.magicLinkButton.addEventListener('click', () => this.sendMagicLink());
         this.apiKeyButton.addEventListener('click', () => this.authenticateWithApiKey());
         this.logoutButton.addEventListener('click', () => this.logout());
+        
+        // Add refresh button listener
+        if (this.refreshButton) {
+            this.refreshButton.addEventListener('click', () => this.refreshUsageStats());
+        }
         
         this.emailInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
@@ -276,18 +282,53 @@ class AuthManager {
                 if (this.currentProfile) {
                     this.tierName.textContent = this.getTierDisplayName(this.currentProfile.tier);
                     
-                    // Update usage
-                    const basicPercent = (this.currentProfile.basic_analysis_count / this.currentProfile.basic_analysis_limit) * 100;
-                    const deepPercent = (this.currentProfile.deep_analysis_count / this.currentProfile.deep_analysis_limit) * 100;
+                    // Update usage based on the new API structure
+                    const usage = this.currentProfile.usage_this_month || { basic_analysis: 0, deep_analysis: 0 };
+                    const limits = this.currentProfile.usage_limits || { basic_analysis: 10, deep_analysis: 0 };
                     
-                    const basicLimit = this.currentProfile.basic_analysis_limit >= 999999 ? '∞' : this.currentProfile.basic_analysis_limit;
-                    const deepLimit = this.currentProfile.deep_analysis_limit >= 999999 ? '∞' : this.currentProfile.deep_analysis_limit;
+                    // Calculate percentages
+                    const basicPercent = limits.basic_analysis > 0 
+                        ? (usage.basic_analysis / limits.basic_analysis) * 100 
+                        : 0;
+                    const deepPercent = limits.deep_analysis > 0 
+                        ? (usage.deep_analysis / limits.deep_analysis) * 100 
+                        : 0;
                     
-                    this.basicUsage.textContent = `${this.currentProfile.basic_analysis_count} / ${basicLimit}`;
-                    this.deepUsage.textContent = `${this.currentProfile.deep_analysis_count} / ${deepLimit}`;
+                    // Format limits for display
+                    const basicLimit = limits.basic_analysis >= 999999 ? '∞' : limits.basic_analysis;
+                    const deepLimit = limits.deep_analysis >= 999999 ? '∞' : limits.deep_analysis;
                     
+                    // Update text displays
+                    this.basicUsage.textContent = `${usage.basic_analysis} / ${basicLimit}`;
+                    this.deepUsage.textContent = `${usage.deep_analysis} / ${deepLimit}`;
+                    
+                    // Update progress bars
                     this.basicUsageBar.style.width = `${Math.min(basicPercent, 100)}%`;
                     this.deepUsageBar.style.width = `${Math.min(deepPercent, 100)}%`;
+                    
+                    // Change bar color if approaching limit using CSS classes
+                    this.basicUsageBar.classList.remove('warning', 'danger');
+                    if (basicPercent >= 90) {
+                        this.basicUsageBar.classList.add('danger');
+                    } else if (basicPercent >= 75) {
+                        this.basicUsageBar.classList.add('warning');
+                    }
+                    
+                    this.deepUsageBar.classList.remove('warning', 'danger');
+                    if (deepPercent >= 90) {
+                        this.deepUsageBar.classList.add('danger');
+                    } else if (deepPercent >= 75) {
+                        this.deepUsageBar.classList.add('warning');
+                    }
+                    
+                    // Hide deep analysis section if user has no deep analysis allowance
+                    const deepUsageItem = this.deepUsageBar.closest('.usage-item');
+                    if (deepUsageItem) {
+                        deepUsageItem.style.display = limits.deep_analysis > 0 ? 'block' : 'none';
+                    }
+                    
+                    // Show tier-specific information
+                    this.updateTierInfo(profile.tier, usage, limits);
                 }
             }
         }
@@ -337,6 +378,75 @@ class AuthManager {
 
     isValidEmail(email) {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    }
+    
+    updateTierInfo(tier, usage, limits) {
+        const tierInfoElement = document.getElementById('tierInfo');
+        if (!tierInfoElement) return;
+        
+        // Calculate remaining usage
+        const basicRemaining = Math.max(0, limits.basic_analysis - usage.basic_analysis);
+        const deepRemaining = Math.max(0, limits.deep_analysis - usage.deep_analysis);
+        
+        let infoHtml = '';
+        
+        // Check if user is running out of analyses
+        if (tier === 'free') {
+            if (basicRemaining <= 2 && basicRemaining > 0) {
+                infoHtml = `⚠️ Απομένουν μόνο ${basicRemaining} βασικές αναλύσεις αυτόν τον μήνα.`;
+            } else if (basicRemaining === 0) {
+                infoHtml = `❌ Έχετε εξαντλήσει τις δωρεάν αναλύσεις σας. <a href="#" class="upgrade-link" onclick="window.open('${BACKEND_URL}/pricing', '_blank'); return false;">Αναβάθμιση σε Pro</a>`;
+            }
+        } else if (tier === 'pro' || tier === 'premium') {
+            const totalRemaining = basicRemaining + deepRemaining;
+            if (totalRemaining <= 5 && totalRemaining > 0) {
+                infoHtml = `⚠️ Πλησιάζετε το μηνιαίο όριο αναλύσεων.`;
+            } else if (totalRemaining === 0) {
+                infoHtml = `❌ Έχετε εξαντλήσει όλες τις αναλύσεις σας αυτόν τον μήνα.`;
+            }
+        }
+        
+        // Show/hide tier info
+        if (infoHtml) {
+            tierInfoElement.innerHTML = infoHtml;
+            tierInfoElement.classList.remove('hidden');
+        } else {
+            tierInfoElement.classList.add('hidden');
+        }
+    }
+    
+    async refreshUsageStats() {
+        // Show loading state on refresh button
+        if (this.refreshButton) {
+            const originalText = this.refreshButton.textContent;
+            this.refreshButton.textContent = '⟳';
+            this.refreshButton.disabled = true;
+            
+            try {
+                // Get current auth state
+                const response = await chrome.runtime.sendMessage({ type: 'GET_AUTH_STATE' });
+                
+                if (response.authState && response.authState.token) {
+                    // Reload user profile to get fresh usage stats
+                    await this.loadUserProfile(response.authState.token);
+                    
+                    // Update the display
+                    if (this.currentProfile) {
+                        this.showAuthenticatedView();
+                    }
+                }
+            } catch (error) {
+                console.error('Error refreshing usage stats:', error);
+            } finally {
+                // Restore button state
+                setTimeout(() => {
+                    if (this.refreshButton) {
+                        this.refreshButton.textContent = originalText;
+                        this.refreshButton.disabled = false;
+                    }
+                }, 500);
+            }
+        }
     }
 }
 

@@ -49,6 +49,59 @@ function createStyledElement(tag, styles = {}, textContent = "") {
     return el;
 }
 
+// --- Progress Messages Sequence ---
+let progressInterval = null;
+let progressStep = 0;
+let lastServerMessageTime = 0;
+let isUsingServerMessages = false;
+
+const progressMessages = [
+    "🔍 Σύνδεση με την υπηρεσία AI...",
+    "📄 Εξαγωγή περιεχομένου άρθρου...",
+    "🧠 Ανάλυση κειμένου με Grok AI...",
+    "📚 Αναζήτηση σχετικών πληροφοριών...",
+    "🔎 Εντοπισμός τεχνικών όρων...",
+    "🌐 Σύνθεση εναλλακτικών απόψεων...",
+    "✨ Προετοιμασία αποτελεσμάτων...",
+    "📊 Οργάνωση πληροφοριών...",
+    "🎯 Τελική επεξεργασία..."
+];
+
+function showProgressSequence() {
+    progressStep = 0;
+    lastServerMessageTime = Date.now();
+    isUsingServerMessages = false;
+    updateStatusDisplay(progressMessages[0]);
+    
+    // Show a new message every 4-5 seconds for better readability
+    // But only if we're not receiving server messages
+    progressInterval = setInterval(() => {
+        const timeSinceLastServerMessage = Date.now() - lastServerMessageTime;
+        
+        // Only show client messages if we haven't received server messages for 6 seconds
+        if (!isUsingServerMessages || timeSinceLastServerMessage > 6000) {
+            progressStep++;
+            if (progressStep < progressMessages.length) {
+                updateStatusDisplay(progressMessages[progressStep]);
+            } else {
+                // Loop back to middle messages if taking longer
+                progressStep = 2; // Start from the 3rd message to avoid connection messages
+                updateStatusDisplay(progressMessages[progressStep]);
+            }
+        }
+    }, 4500);
+}
+
+function stopProgressSequence() {
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+    progressStep = 0;
+    lastServerMessageTime = 0;
+    isUsingServerMessages = false;
+}
+
 // --- Create Intelligent Sidebar ---
 function createIntelligenceSidebar() {
     if (intelligenceSidebar) intelligenceSidebar.remove();
@@ -548,13 +601,55 @@ function renderCitations(citationsArray, parentElement, titleText) {
 
 // --- Status Display Function ---
 function updateStatusDisplay(message) {
+    console.log("[updateStatusDisplay] Called with message:", message);
+    
     if (!statusDisplay) {
         statusDisplay = document.createElement('div');
         statusDisplay.className = 'intelligence-status';
+        statusDisplay.style.cssText = `
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(12px);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 50px;
+            font-size: 13px;
+            font-weight: 500;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            z-index: 10000;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        `;
         document.body.appendChild(statusDisplay);
     }
+    
     if (message) {
-        statusDisplay.innerHTML = `<div class="status-spinner"></div><span>${message}</span>`;
+        // Add keyframes animation if not already added
+        if (!document.getElementById('news-copilot-spin-animation')) {
+            const style = document.createElement('style');
+            style.id = 'news-copilot-spin-animation';
+            style.textContent = `
+                @keyframes newsCopilotSpin {
+                    to { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        statusDisplay.innerHTML = `
+            <div class="status-spinner" style="
+                width: 16px;
+                height: 16px;
+                border: 2px solid rgba(255, 255, 255, 0.3);
+                border-top-color: white;
+                border-radius: 50%;
+                animation: newsCopilotSpin 0.8s linear infinite;
+            "></div>
+            <span>${message}</span>
+        `;
         statusDisplay.style.display = 'flex';
     } else {
         statusDisplay.style.display = 'none';
@@ -567,12 +662,17 @@ augmentButton.addEventListener("click", () => {
     augmentButton.querySelector("span").textContent = "Αναλύεται...";
     augmentButton.classList.add('processing');
     augmentButton.disabled = true;
-    updateStatusDisplay("Σύνδεση με την υπηρεσία AI...");
+    
+    // Start showing granular progress messages
+    showProgressSequence();
 
     const articleUrl = window.location.href;
     window.currentArticleUrl = articleUrl; // Store for progressive analysis
 
     chrome.runtime.sendMessage({ type: "AUGMENT_ARTICLE", url: articleUrl }, (response) => {
+        // Stop progress sequence
+        stopProgressSequence();
+        
         augmentButton.querySelector("span").textContent = "Ανάλυση Άρθρου";
         augmentButton.classList.remove('processing');
         augmentButton.disabled = false;
@@ -602,16 +702,19 @@ augmentButton.addEventListener("click", () => {
 
         const contentPanel = createIntelligenceSidebar();
         if (response && response.success) {
-            updateStatusDisplay("Επεξεργασία insights...");
+            updateStatusDisplay("📊 Οργάνωση πληροφοριών...");
             currentData = response;
             
-            renderOverview(response.jargon, response.viewpoints, contentPanel);
-            renderTerms(response.jargon, response.jargon_citations, contentPanel);
-            renderViewpoints(response.viewpoints, response.viewpoints_citations, contentPanel);
-            
-            intelligenceSidebar.classList.add('open');
-            document.body.style.marginRight = '420px';
-            updateStatusDisplay(null);
+            // Small delay before rendering
+            setTimeout(() => {
+                renderOverview(response.jargon, response.viewpoints, contentPanel);
+                renderTerms(response.jargon, response.jargon_citations, contentPanel);
+                renderViewpoints(response.viewpoints, response.viewpoints_citations, contentPanel);
+                
+                intelligenceSidebar.classList.add('open');
+                document.body.style.marginRight = '420px';
+                updateStatusDisplay(null);
+            }, 500);
         } else {
             const errorMsg = response ? response.error : "Άγνωστο σφάλμα από το background script";
             updateStatusDisplay(`Αποτυχία: ${errorMsg}`);
@@ -636,8 +739,18 @@ augmentButton.addEventListener("click", () => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === "PROGRESS_UPDATE") {
         console.log("Ενημέρωση προόδου από background:", message.status);
+        
+        // Mark that we're receiving server messages
+        lastServerMessageTime = Date.now();
+        isUsingServerMessages = true;
+        
+        // Display the server message
         updateStatusDisplay(message.status);
+        
+        // Send response to avoid console errors
+        sendResponse({received: true});
     }
+    return false; // Synchronous response
 });
 
 // --- Keyboard Shortcuts ---
@@ -700,8 +813,54 @@ function handleProgressiveAnalysis(analysisType) {
     }
     
     const originalContent = analysisButton.innerHTML;
-    analysisButton.innerHTML = '<div style="text-align: center;">⏳ Αναλύεται...</div>';
+    
+    // Set up loading messages for this analysis type
+    const loadingMessages = {
+        'fact-check': [
+            '🔍 Εντοπισμός ισχυρισμών...',
+            '📰 Αναζήτηση πηγών επαλήθευσης...',
+            '✓ Έλεγχος αξιοπιστίας...',
+            '📊 Σύνθεση αποτελεσμάτων...'
+        ],
+        'bias': [
+            '📝 Ανάλυση γλώσσας άρθρου...',
+            '⚖️ Εντοπισμός πολιτικής κλίσης...',
+            '🔎 Αναζήτηση φορτισμένων όρων...',
+            '📊 Υπολογισμός μεροληψίας...'
+        ],
+        'timeline': [
+            '📅 Αναζήτηση ιστορικού πλαισίου...',
+            '🕐 Χρονολογική ταξινόμηση...',
+            '🔗 Σύνδεση γεγονότων...',
+            '📊 Δημιουργία χρονολογίου...'
+        ],
+        'expert': [
+            '🎓 Αναζήτηση ειδικών...',
+            '💬 Συλλογή απόψεων από X...',
+            '📰 Εύρεση δηλώσεων...',
+            '📊 Οργάνωση απόψεων...'
+        ],
+        'x-pulse': [
+            '𝕏 Σύνδεση με X API...',
+            '🔍 Ανάλυση 5 υπο-πρακτόρων...',
+            '💬 Συλλογή συζητήσεων...',
+            '📊 Σύνθεση συναισθήματος...',
+            '🎯 Εντοπισμός θεμάτων...'
+        ]
+    };
+    
+    const messages = loadingMessages[analysisType] || ['⏳ Αναλύεται...'];
+    let messageIndex = 0;
+    
+    // Show initial message
+    analysisButton.innerHTML = `<div style="text-align: center;">${messages[0]}</div>`;
     analysisButton.disabled = true;
+    
+    // Rotate through messages more slowly for readability
+    const messageInterval = setInterval(() => {
+        messageIndex = (messageIndex + 1) % messages.length;
+        analysisButton.innerHTML = `<div style="text-align: center;">${messages[messageIndex]}</div>`;
+    }, 5000); // 5 seconds per message
     
     // Create analysis request with specific sources based on type
     const searchParams = {
@@ -747,6 +906,9 @@ function handleProgressiveAnalysis(analysisType) {
         searchParams: searchParams
     }, (response) => {
         console.log('Deep analysis response for', analysisType, ':', response);
+        
+        // Clear the loading message interval
+        clearInterval(messageInterval);
         
         analysisButton.innerHTML = originalContent;
         analysisButton.disabled = false;

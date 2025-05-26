@@ -82,8 +82,45 @@ def augment_article_stream_route():
             yield f"event: error\ndata: {json.dumps({'message': 'Missing URL parameter'})}\n\n"
         return Response(stream_with_context(error_stream()), mimetype='text/event-stream')
 
+    # Create a wrapper generator that logs usage after completion
+    def stream_with_usage_logging():
+        # Track if we've logged usage yet (only log once)
+        usage_logged = False
+        
+        try:
+            # Get user info from request context (set by auth decorator)
+            user_id = getattr(request, 'user_id', None)
+            
+            # Stream the analysis
+            for chunk in analysis_handler.get_augmentations_stream(article_url):
+                yield chunk
+            
+            # Log usage only after successful completion
+            if user_id and not usage_logged:
+                try:
+                    # Import the correct log_usage function based on auth system
+                    if hasattr(request, '_http_supabase_auth'):
+                        from .http_supabase import log_usage
+                    else:
+                        from .supabase_auth import log_usage
+                    
+                    # Log basic analysis (jargon + viewpoints)
+                    log_usage(
+                        user_id=user_id,
+                        analysis_type='basic_analysis',
+                        article_url=article_url
+                    )
+                    usage_logged = True
+                    print(f"[Flask /augment-stream] Logged usage for user {user_id}", flush=True)
+                except Exception as e:
+                    print(f"[Flask /augment-stream] Error logging usage: {e}", flush=True)
+                    
+        except Exception as e:
+            print(f"[Flask /augment-stream] Error in stream: {e}", flush=True)
+            yield f"event: error\ndata: {json.dumps({'message': str(e)})}\n\n"
+
     return Response(
-        stream_with_context(analysis_handler.get_augmentations_stream(article_url)), 
+        stream_with_context(stream_with_usage_logging()), 
         mimetype='text/event-stream'
     )
 
@@ -105,6 +142,27 @@ def deep_analysis_route():
         
         # Get analysis result
         result = analysis_handler.get_deep_analysis(article_url, analysis_type, search_params)
+        
+        # Log usage after successful analysis
+        user_id = getattr(request, 'user_id', None)
+        if user_id:
+            try:
+                # Import the correct log_usage function based on auth system
+                if hasattr(request, '_http_supabase_auth'):
+                    from .http_supabase import log_usage
+                else:
+                    from .supabase_auth import log_usage
+                
+                # Log deep analysis usage
+                log_usage(
+                    user_id=user_id,
+                    analysis_type=analysis_type,  # This will be fact-check, bias, timeline, expert, or x-pulse
+                    article_url=article_url
+                )
+                print(f"[Flask /deep-analysis] Logged {analysis_type} usage for user {user_id}", flush=True)
+            except Exception as e:
+                print(f"[Flask /deep-analysis] Error logging usage: {e}", flush=True)
+        
         # Return in the format expected by frontend
         return jsonify({
             'success': True, 
