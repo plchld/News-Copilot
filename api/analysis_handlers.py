@@ -399,6 +399,10 @@ class AnalysisHandler:
         response_data = json.loads(completion.choices[0].message.content)
         citations = self.grok_client.extract_citations(completion)
         
+        # Apply response adapter for fact-check
+        if analysis_type == 'fact-check':
+            response_data = transform_fact_check_response(response_data)
+            
         # Special validation for expert analysis
         if analysis_type == 'expert':
             # Import citation processor
@@ -572,3 +576,60 @@ class AnalysisHandler:
                 }
             }
         }
+
+def transform_fact_check_response(response_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transforms the raw response from the Fact-Check agent to include source quality information.
+    """
+    response_data['source_quality'] = {
+        "score": "N/A",
+        "description": "Source quality not assessed by agent"
+    }
+    return response_data
+
+# Helper functions for transform_bias_response
+def _extract_political_lean(agent_result: Dict[str, Any]) -> str:
+    political_analysis = agent_result.get('political_spectrum_analysis_greek', {})
+    economic = political_analysis.get('economic_axis_placement', 'N/A')
+    social = political_analysis.get('social_axis_placement', 'N/A')
+    if economic == 'N/A' and social == 'N/A':
+        return "N/A"
+    return f"Economic: {economic}, Social: {social}"
+
+def _extract_framing_summary(agent_result: Dict[str, Any]) -> str:
+    language_analysis = agent_result.get('language_and_framing_analysis', {})
+    techniques = language_analysis.get('identified_framing_techniques', [])
+    if not techniques:
+        return "N/A"
+    
+    summary_parts = []
+    for tech in techniques:
+        name = tech.get('technique_name', 'Unknown technique')
+        example = tech.get('example_from_article', 'No example provided')
+        summary_parts.append(f"{name}: \"{example}\"")
+    return "; ".join(summary_parts)
+
+def _extract_loaded_words(agent_result: Dict[str, Any]) -> List[str]:
+    language_analysis = agent_result.get('language_and_framing_analysis', {})
+    terms = language_analysis.get('emotionally_charged_terms', [])
+    return [term.get('term') for term in terms if term.get('term')]
+
+def transform_bias_response(agent_result: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Transforms the raw response from the Bias agent to the desired frontend format.
+    """
+    language_analysis_data = agent_result.get('language_and_framing_analysis', {})
+    political_analysis_data = agent_result.get('political_spectrum_analysis_greek', {})
+
+    return {
+        "political_lean": _extract_political_lean(agent_result),
+        "emotional_tone": language_analysis_data.get('detected_tone', "N/A"),
+        "confidence": political_analysis_data.get('overall_confidence', "N/A"),
+        "language_analysis": {
+            "framing": _extract_framing_summary(agent_result),
+            "loaded_words": _extract_loaded_words(agent_result),
+            "missing_perspectives": language_analysis_data.get('missing_perspectives_summary', "N/A"),
+        },
+        "comparison": agent_result.get('comparison', "N/A"), # Assuming 'comparison' is a root key
+        "recommendations": agent_result.get('recommendations', "N/A") # Assuming 'recommendations' is a root key
+    }

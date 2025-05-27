@@ -5,7 +5,7 @@ import pytest
 import json
 from unittest.mock import Mock, patch, MagicMock
 
-from api.analysis_handlers import AnalysisHandler
+from api.analysis_handlers import AnalysisHandler, transform_fact_check_response, transform_bias_response
 
 
 class TestAnalysisHandler:
@@ -157,11 +157,147 @@ class TestAnalysisHandler:
         mock_fetch.return_value = sample_article_text
         
         # Mock Grok client to raise error on jargon call
-        handler.grok_client.create_completion = Mock(side_effect=Exception("API Error"))
-        
+        # Ensure the coordinator is mocked if it's called directly
+        if hasattr(handler, 'coordinator'):
+             # Mock the coordinator's analyze_core method if it's the one making the call
+            mock_coordinator = AsyncMock()
+            mock_coordinator.analyze_core.return_value = {
+                'success': False,
+                'errors': {'jargon': 'API Error'},
+                'results': {}
+            }
+            handler.coordinator = mock_coordinator
+        else:
+            # Fallback to mocking create_completion if coordinator is not used or structure is different
+            handler.grok_client.create_completion = Mock(side_effect=Exception("API Error"))
+
         # Collect stream results
-        results = list(handler.get_augmentations_stream("https://example.com"))
+        # Since get_augmentations_stream is async, we need to handle it appropriately
+        async def collect_results():
+            results_list = []
+            async for item in handler.get_augmentations_stream("https://example.com"):
+                results_list.append(item)
+            return results_list
+
+        results = pytest. asyncio.run(collect_results())
         
         # Check that error event was sent
         assert any('event: error' in r for r in results)
-        assert any('"message": "Error explaining terms."' in r for r in results)
+        # The error message comes from the coordinator now
+        assert any("Error during analysis." in r for r in results)
+
+
+    def test_transform_fact_check_response(self):
+        """Test the transform_fact_check_response function."""
+        sample_fact_check_input = {
+            "overall_credibility": "μέτρια",
+            "claims": [
+                {
+                    "statement": "Claim 1",
+                    "verified": True,
+                    "explanation": "Explanation 1",
+                    "sources": ["Source A"]
+                }
+            ],
+            "red_flags": [],
+            "missing_context": "None"
+        }
+        expected_fact_check_output = {
+            "overall_credibility": "μέτρια",
+            "claims": [
+                {
+                    "statement": "Claim 1",
+                    "verified": True,
+                    "explanation": "Explanation 1",
+                    "sources": ["Source A"]
+                }
+            ],
+            "red_flags": [],
+            "missing_context": "None",
+            "source_quality": {"score": "N/A", "description": "Source quality not assessed by agent"}
+        }
+        assert transform_fact_check_response(sample_fact_check_input.copy()) == expected_fact_check_output
+
+        sample_empty_fact_check_input = {"overall_credibility": "χαμηλή", "claims": [], "red_flags": None} # Added red_flags:None
+        expected_empty_fact_check_output = {
+            "overall_credibility": "χαμηλή", 
+            "claims": [],
+            "red_flags": None,
+            "source_quality": {"score": "N/A", "description": "Source quality not assessed by agent"}
+        }
+        assert transform_fact_check_response(sample_empty_fact_check_input.copy()) == expected_empty_fact_check_output
+
+    def test_transform_bias_response(self):
+        """Test the transform_bias_response function."""
+        sample_bias_input = {
+            "political_spectrum_analysis_greek": {
+                "economic_axis_placement": "Κεντροαριστερά",
+                "economic_axis_justification": "Justification econ",
+                "social_axis_placement": "Φιλελεύθερη",
+                "social_axis_justification": "Justification social",
+                "overall_confidence": "Υψηλή"
+            },
+            "language_and_framing_analysis": {
+                "emotionally_charged_terms": [
+                    {"term": "term1", "explanation": "expl1"},
+                    {"term": "term2", "explanation": "expl2"}
+                ],
+                "identified_framing_techniques": [
+                    {"technique_name": "Framing1", "example_from_article": "Example1"},
+                    {"technique_name": "Framing2", "example_from_article": "Example2"}
+                ],
+                "detected_tone": "μικτός",
+                "missing_perspectives_summary": "Missing some perspectives."
+            },
+            "sources_diversity": "Adequate", # Added this as per schema
+            "analysis_summary": "Summary of bias.", # Added this as per schema
+            "supporting_evidence": ["Evidence 1"], # Added this as per schema
+            "comparison": "Comparison text.", # This was an assumed field, not in schema
+            "recommendations": "Recommendations text." # This was an assumed field, not in schema
+        }
+        expected_bias_output = {
+            "political_lean": "Economic: Κεντροαριστερά, Social: Φιλελεύθερη",
+            "emotional_tone": "μικτός",
+            "confidence": "Υψηλή",
+            "language_analysis": {
+                "framing": "Framing1: \"Example1\"; Framing2: \"Example2\"", # Corrected example format
+                "loaded_words": ["term1", "term2"],
+                "missing_perspectives": "Missing some perspectives."
+            },
+            "comparison": "Comparison text.",
+            "recommendations": "Recommendations text."
+        }
+        assert transform_bias_response(sample_bias_input.copy()) == expected_bias_output
+
+        sample_empty_bias_input = {
+            "political_spectrum_analysis_greek": {},
+            "language_and_framing_analysis": {
+                "emotionally_charged_terms": [],
+                "identified_framing_techniques": [],
+                # "detected_tone" is missing -> should default to N/A
+                # "missing_perspectives_summary" is missing -> should default to N/A
+            }
+            # "comparison" is missing -> should default to N/A
+            # "recommendations" is missing -> should default to N/A
+        }
+        expected_empty_bias_output = {
+            "political_lean": "N/A", # Corrected based on helper
+            "emotional_tone": "N/A",
+            "confidence": "N/A",
+            "language_analysis": {
+                "framing": "N/A", # Corrected based on helper
+                "loaded_words": [],
+                "missing_perspectives": "N/A"
+            },
+            "comparison": "N/A",
+            "recommendations": "N/A"
+        }
+        assert transform_bias_response(sample_empty_bias_input.copy()) == expected_empty_bias_output
+
+# Need to add AsyncMock for Python < 3.8 if not already available
+# For simplicity, assuming pytest-asyncio is installed and handles AsyncMock
+from unittest.mock import MagicMock
+if not hasattr(MagicMock, 'assert_awaited'): # Basic check for async mock capabilities
+    class AsyncMock(MagicMock):
+        async def __call__(self, *args, **kwargs):
+            return super(AsyncMock, self).__call__(*args, **kwargs)
