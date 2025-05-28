@@ -80,7 +80,12 @@ class GrokClient:
         # Log request details
         logger.info(f"Grok API request - Model: {model}, Messages: {len(messages)}")
         if search_params:
-            logger.debug(f"Search params: {json.dumps(search_params, ensure_ascii=False)}")
+            try:
+                # Use ensure_ascii=True to avoid Unicode encoding issues on Windows
+                search_params_str = json.dumps(search_params, ensure_ascii=False, indent=None)
+                logger.debug(f"Search params: {search_params_str}")
+            except Exception as e:
+                logger.debug(f"Search params logging failed: {e}")
         
         # Make the API call
         async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -135,12 +140,22 @@ class GrokClient:
         user_prompt: str,
         schema: Dict[str, Any],
         model: str = "grok-3",
+        search_enabled: bool = False,
         **kwargs
     ) -> Dict[str, Any]:
         """
         Create a completion with structured JSON output
         
-        Returns the parsed JSON response
+        Args:
+            system_prompt: System prompt for the model
+            user_prompt: User prompt containing the content to analyze
+            schema: JSON schema for structured output
+            model: Model to use (default: grok-3)
+            search_enabled: Whether to enable live search (default: False)
+            **kwargs: Additional parameters passed to create_completion
+        
+        Returns:
+            The parsed JSON response
         """
         messages = [
             {"role": "system", "content": system_prompt},
@@ -156,10 +171,23 @@ class GrokClient:
             }
         }
         
+        # Handle search_enabled parameter
+        search_params = None
+        if search_enabled:
+            # Extract a better search query from the content
+            search_query = self._extract_search_query(user_prompt)
+            search_params = self.build_search_params(
+                query=search_query,
+                language="el",
+                max_results=10,
+                recency_days=7
+            )
+        
         result = await self.create_completion(
             messages=messages,
             model=model,
             response_format=response_format,
+            search_params=search_params,
             **kwargs
         )
         
@@ -204,6 +232,45 @@ class GrokClient:
             params["search_options"]["exclude_domains"] = excluded_domains
         
         return params
+    
+    def _extract_search_query(self, user_prompt: str) -> str:
+        """
+        Extract a good search query from the user prompt
+        
+        Args:
+            user_prompt: The full user prompt
+            
+        Returns:
+            A concise search query for live search
+        """
+        # Remove common instruction phrases
+        content = user_prompt.replace('Ανάλυσε το παρακάτω άρθρο', '')
+        content = content.replace('Απάντησε σε JSON', '')
+        content = content.replace('με τη δομή που σου δόθηκε', '')
+        content = content.replace('Χρησιμοποίησε live search', '')
+        
+        # Find the actual article content (usually after "άρθρο:")
+        lines = content.split('\n')
+        article_lines = []
+        
+        for line in lines:
+            line = line.strip()
+            if line and not line.endswith(':') and len(line) > 20:
+                article_lines.append(line)
+                if len(' '.join(article_lines)) > 150:  # Limit to ~150 chars
+                    break
+        
+        # Join and clean up
+        search_query = ' '.join(article_lines)
+        
+        # Remove ellipsis and extra whitespace
+        search_query = search_query.replace('...', '').strip()
+        
+        # If still too long, take first 150 chars
+        if len(search_query) > 150:
+            search_query = search_query[:150].rsplit(' ', 1)[0]  # Break at word boundary
+        
+        return search_query or user_prompt[:100]  # Fallback
 
 
 # Singleton instance
