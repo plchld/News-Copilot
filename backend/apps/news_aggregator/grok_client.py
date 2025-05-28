@@ -82,7 +82,7 @@ class GrokClient:
         if search_params:
             try:
                 # Use ensure_ascii=True to avoid Unicode encoding issues on Windows
-                search_params_str = json.dumps(search_params, ensure_ascii=False, indent=None)
+                search_params_str = json.dumps(search_params, ensure_ascii=True, indent=None)
                 logger.debug(f"Search params: {search_params_str}")
             except Exception as e:
                 logger.debug(f"Search params logging failed: {e}")
@@ -141,6 +141,7 @@ class GrokClient:
         schema: Dict[str, Any],
         model: str = "grok-3",
         search_enabled: bool = False,
+        search_params: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> Dict[str, Any]:
         """
@@ -152,6 +153,7 @@ class GrokClient:
             schema: JSON schema for structured output
             model: Model to use (default: grok-3)
             search_enabled: Whether to enable live search (default: False)
+            search_params: Custom search parameters (overrides search_enabled)
             **kwargs: Additional parameters passed to create_completion
         
         Returns:
@@ -171,12 +173,13 @@ class GrokClient:
             }
         }
         
-        # Handle search_enabled parameter
-        search_params = None
-        if search_enabled:
-            # Extract a better search query from the content
+        # Handle search parameters
+        final_search_params = search_params  # Use provided search_params if available
+        
+        if final_search_params is None and search_enabled:
+            # Generate search_params from search_enabled if no explicit params provided
             search_query = self._extract_search_query(user_prompt)
-            search_params = self.build_search_params(
+            final_search_params = self.build_search_params(
                 query=search_query,
                 language="el",
                 max_results=10,
@@ -187,7 +190,7 @@ class GrokClient:
             messages=messages,
             model=model,
             response_format=response_format,
-            search_params=search_params,
+            search_params=final_search_params,
             **kwargs
         )
         
