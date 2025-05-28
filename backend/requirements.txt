@@ -2,6 +2,7 @@
 Django>=5.0,<6.0
 django-environ
 django-cors-headers
+django-debug-toolbar
 
 # Django REST Framework
 djangorestframework

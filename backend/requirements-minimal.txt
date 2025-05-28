@@ -1,6 +1,0 @@
-# Absolute minimum to run Django
-Django>=5.0,<6.0
-djangorestframework
-django-cors-headers
-psycopg[binary]
-python-slugify

@@ -20,3 +20,13 @@ app.autodiscover_tasks()
 @app.task(bind=True)
 def debug_task(self):
     print(f'Request: {self.request!r}')
+
+# Celery Beat Schedule
+from celery.schedules import crontab
+
+app.conf.beat_schedule = {
+    'cleanup-old-jobs': {
+        'task': 'apps.news_aggregator.tasks.cleanup_old_jobs',
+        'schedule': crontab(hour=2, minute=0),  # Daily at 2 AM
+    },
+}
