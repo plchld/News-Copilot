@@ -19,7 +19,7 @@ class BiasAgent(AnalysisAgent):
             name="bias",
             description="Analyzes political bias and framing in articles",
             default_model=ModelType.GROK_3,
-            complexity=ComplexityLevel.COMPLEX,
+            complexity=ComplexityLevel.HIGH,
             timeout_seconds=90
         )
         schema = get_bias_response_schema()

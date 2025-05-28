@@ -19,7 +19,7 @@ class ExpertAgent(AnalysisAgent):
             name="expert",
             description="Synthesizes expert perspectives and opinions on article topics",
             default_model=ModelType.GROK_3,
-            complexity=ComplexityLevel.COMPLEX,
+            complexity=ComplexityLevel.HIGH,
             timeout_seconds=120
         )
         schema = get_expert_response_schema()

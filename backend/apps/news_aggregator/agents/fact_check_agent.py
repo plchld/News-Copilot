@@ -19,7 +19,7 @@ class FactCheckAgent(AnalysisAgent):
             name="fact_check",
             description="Verifies claims and checks facts in articles",
             default_model=ModelType.GROK_3,
-            complexity=ComplexityLevel.COMPLEX,
+            complexity=ComplexityLevel.HIGH,
             timeout_seconds=120
         )
         schema = get_fact_check_response_schema()
