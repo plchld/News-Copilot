@@ -17,18 +17,18 @@ The architecture uses Server-Sent Events (SSE) for real-time progress updates an
 The API is modularly organized in the `api/` directory:
 - **index.py**: Vercel entry point that imports the Flask app
 - **app.py**: Flask application factory with route registration
-- **routes.py**: Main API routes for analysis endpoints
-- **analysis_handlers.py**: Core analysis processing logic
-- **article_extractor.py**: Content extraction with Trafilatura
-- **grok_client.py**: Grok API client wrapper with error handling
+- **routes/**: Modular route handlers (analysis.py, auth.py, admin.py)
+- **core/**: Core processing logic (analysis_handlers.py, article_extractor.py, grok_client.py)
+- **auth/**: Authentication system (supabase.py, decorators.py, models.py)
+- **utils/**: Utility modules (prompt_utils.py, search_params_builder.py, thinking_utils.py)
 - **config.py**: Configuration management for all services
 - **models.py**: Pydantic models for request/response validation
-- **auth modules**: Multiple auth implementations (supabase_auth.py, http_supabase.py, simple_auth.py)
 
-### Agentic Intelligence Architecture (NEW)
+### Agentic Intelligence Architecture
 The `api/agents/` directory implements a sophisticated agent-based system:
 - **base_agent.py**: Base classes (BaseAgent, AnalysisAgent, NestedAgent) with dynamic model selection
-- **coordinator.py**: AgentCoordinator orchestrates parallel execution and quality control
+- **optimized_coordinator.py**: AgentCoordinator orchestrates parallel execution and quality control
+- **schemas.py**: Structured output schemas for all agent responses
 - **Individual agents**:
   - `jargon_agent.py` - Term explanations (grok-3-mini for cost efficiency)
   - `viewpoints_agent.py` - Alternative perspectives (grok-3)
@@ -37,80 +37,79 @@ The `api/agents/` directory implements a sophisticated agent-based system:
   - `timeline_agent.py` - Event chronology (grok-3)
   - `expert_agent.py` - Expert opinions (grok-3)
   - `x_pulse_agent.py` - X discourse analysis with 5 nested sub-agents (grok-3)
+  - `perspective_enricher.py` - Additional perspective enhancement
 - **Advanced features**:
   - Dynamic model selection based on user tier, article length, and retry count
   - Parallel execution for 3x faster analysis
   - Quality control with chat-based refinement
   - Cost optimization through strategic model usage
+  - Structured JSON schemas for all outputs
 
 ## Development Commands
 
+### Quick Start
+```bash
+# Setup environment and install all dependencies
+make install && make setup-env
+
+# Start both API and web servers (mirrors Vercel deployment)
+make run
+
+# Individual server commands
+make run-api    # Flask API on :8080
+make run-web    # Next.js web on :3000
+```
+
+### Development Workflow
+```bash
+# Format and lint code
+make format     # Black + Prettier formatting
+make lint       # Flake8 + ESLint linting
+
+# Testing commands
+make test              # Run all tests with coverage
+make test-unit         # Unit tests only
+make test-integration  # Integration tests only
+make test-sites        # Test news site extraction
+
+# Specific test commands
+python run_tests.py tests/test_routes.py::TestRoutes::test_home_api_request
+pytest -m "not slow"   # Skip slow tests
+pytest -m unit         # Run only unit tests
+
+# Debug and analyze
+make debug-grok        # Debug Grok API connection
+make analyze          # Interactive URL analysis
+make test-api         # Test API health endpoints
+```
+
 ### Backend Development
 ```bash
-# Install dependencies
-pip install -r requirements.txt
+# Direct API server start
+python api/index.py
 
-# Set up environment variables
-cp .env.example .env  # Then edit with your keys
-# Required: XAI_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY
+# Development server (with hot reload)
+python dev_server.py
 
-# Start local development server
-python explain_with_grok.py --server
-
-# CLI testing mode
+# Legacy CLI mode (deprecated)
 python explain_with_grok.py <article_url>
 
-# Test authentication system
+# Authentication testing
 python test_auth_system.py
+python setup_admin.py  # Create admin user
 
-# Test Supabase integration
-python test_supabase_simple.py
-python test_http_supabase.py
-
-# Test agentic architecture
-python api/agents/test_agents.py
+# Agent system testing
+python debug/debug_agents.py
+python debug/test_viewpoints_debug.py
 ```
 
-### Chrome Extension Development
+### Web App Development
 ```bash
-# Load extension in Chrome
-# 1. Open chrome://extensions/
-# 2. Enable Developer mode
-# 3. Click "Load unpacked" and select extension/ folder
-
-# Test on Greek news sites
-# Visit any supported site from manifest.json matches[]
-# Extension uses popup-auth.html for auth
-```
-
-### Testing
-```bash
-# Run all tests with coverage
-python run_tests.py
-# or
-pytest --cov=api --cov-report=term-missing
-
-# Run specific test module
-pytest tests/test_article_extractor.py -v
-
-# Run specific test class or function
-pytest tests/test_routes.py::TestRoutes::test_home_api_request -v
-
-# Run tests with specific markers
-pytest -m "not slow"  # Skip slow tests
-pytest -m unit        # Run only unit tests
-
-# Test supported sites configuration
-python test_sites.py
-
-# Robust site testing with error handling
-python test_sites_robust.py
-
-# Test authentication endpoints
-python test_auth_system.py
-
-# Setup test environment
-python setup_test_env.py
+# Next.js development (from web/ directory)
+cd web && npm run dev
+cd web && npm run build
+cd web && npm run type-check
+cd web && npm run lint
 ```
 
 ### Test Infrastructure
@@ -160,14 +159,24 @@ The prompt system follows a standardized architecture (see `PROMPT_ARCHITECTURE.
 - Conversation history for iterative refinement
 - Consistent Greek output requirements
 
-### Chrome Extension Structure
-- **manifest.json**: Configured for 50+ Greek news sites with Supabase permissions
-- **content_script_clean.js**: Complete UI implementation with sidebar and reader mode
-- **background.js**: Service worker for API communication and message handling
-- **popup-auth.html/js**: Main authentication UI with magic link support
-- **popup-supabase.html/js**: Alternative Supabase authentication UI
-- **js/supabase-auth.js**: Supabase client configuration
-- **css/content_styles.css**: Extension styling for sidebar and reader mode
+### Web App Architecture (Next.js)
+The `web/` directory contains a modern Next.js application:
+- **src/app/**: App Router with layout.tsx and page.tsx
+- **src/components/**: React components organized by feature
+  - `analysis/` - Analysis result components (BiasAnalysis, FactCheckAnalysis, etc.)
+  - `AnalysisContent.tsx` - Main analysis display
+  - `ArticleInput.tsx` - URL input component
+  - `LoadingSpinner.tsx` - Progress indication
+- **src/hooks/**: Custom React hooks (useProgressSequence.ts)
+- **src/utils/**: Utility functions (markdown.ts)
+- **Styling**: Tailwind CSS with custom configurations
+
+### Chrome Extension Structure (Deprecated)
+Extension moved to `deprecated/extension/`:
+- **manifest.json**: Configured for 50+ Greek news sites
+- **content_script_clean.js**: Sidebar UI implementation
+- **popup-auth.html/js**: Authentication interface
+- **Note**: Extension functionality migrated to Next.js web app
 
 ## Supported Sites
 
@@ -242,6 +251,17 @@ When deploying to production:
 - **Admin Setup**: Use `setup_admin.py` to create initial admin user
 - **Verification Pages**: `static/verification-success.html` and `static/verification-failed.html`
 
-## Memories
-- Run these tests after changes
-```
+## Code Quality & Formatting
+The project uses standardized formatting and linting:
+- **Python**: Black (88 char line length), Ruff linting, type hints
+- **TypeScript**: Prettier formatting, ESLint, strict TypeScript config
+- **Testing**: Pytest with coverage reporting, organized test structure
+- **CI/CD**: Automated via Makefile commands
+
+## Development Notes
+- **Environment Setup**: Use `make setup-env` to create .env with required variables
+- **Dual Architecture**: Web app (Next.js) + API (Flask) mirrors Vercel deployment
+- **Debug Tools**: Comprehensive debugging in `debug/` directory for API issues
+- **Greek Language**: All user-facing content and AI responses in Greek
+- **Rate Limiting**: Built-in user tier system (free/premium/admin)
+- **Structured Outputs**: All AI agents return validated JSON schemas

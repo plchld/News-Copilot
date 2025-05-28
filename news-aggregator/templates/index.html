@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Aggregator - Ελληνικές Ειδήσεις με AI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 30px 0;
+            margin-bottom: 40px;
+        }
+        
+        header h1 {
+            text-align: center;
+            font-size: 2.5em;
+        }
+        
+        header p {
+            text-align: center;
+            margin-top: 10px;
+            opacity: 0.8;
+        }
+        
+        .input-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        input[type="url"] {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        button {
+            padding: 12px 30px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .articles-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .article-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .article-card:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        
+        .article-title {
+            font-size: 1.3em;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .article-meta {
+            display: flex;
+            gap: 20px;
+            color: #7f8c8d;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        
+        .analysis-tags {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        
+        .tag {
+            background-color: #ecf0f1;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            color: #34495e;
+        }
+        
+        .error {
+            background-color: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .success {
+            background-color: #27ae60;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        #articleModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.7);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        
+        .modal-content {
+            background: white;
+            margin: 50px auto;
+            max-width: 900px;
+            padding: 40px;
+            border-radius: 10px;
+            position: relative;
+        }
+        
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 30px;
+            cursor: pointer;
+            color: #7f8c8d;
+        }
+        
+        .enrichment-section {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .enrichment-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>🤖 News Aggregator</h1>
+            <p>Ελληνικές Ειδήσεις με AI-Powered Ανάλυση</p>
+        </div>
+    </header>
+    
+    <div class="container">
+        <!-- Input Section -->
+        <div class="input-section">
+            <h2>Προσθήκη Νέου Άρθρου</h2>
+            <p style="margin-bottom: 20px; color: #7f8c8d;">Εισάγετε το URL ενός άρθρου για ανάλυση</p>
+            
+            <div class="input-group">
+                <input type="url" id="articleUrl" placeholder="https://www.amna.gr/home/article/..." />
+                <button id="processBtn" onclick="processArticle()">Ανάλυση</button>
+            </div>
+            
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="margin-top: 15px;">Γίνεται επεξεργασία του άρθρου...</p>
+            </div>
+            
+            <div class="error" id="error"></div>
+            <div class="success" id="success"></div>
+        </div>
+        
+        <!-- Articles Section -->
+        <div class="articles-section">
+            <h2>Πρόσφατα Άρθρα</h2>
+            <div id="articlesList"></div>
+        </div>
+    </div>
+    
+    <!-- Article Modal -->
+    <div id="articleModal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <div id="modalContent"></div>
+        </div>
+    </div>
+    
+    <script>
+        // Load articles on page load
+        window.onload = function() {
+            loadArticles();
+        };
+        
+        function loadArticles() {
+            fetch('/articles')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        displayArticles(data.articles);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading articles:', error);
+                });
+        }
+        
+        function displayArticles(articles) {
+            const container = document.getElementById('articlesList');
+            container.innerHTML = '';
+            
+            if (articles.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #7f8c8d;">Δεν υπάρχουν άρθρα ακόμα</p>';
+                return;
+            }
+            
+            articles.forEach(article => {
+                const card = document.createElement('div');
+                card.className = 'article-card';
+                card.onclick = () => viewArticle(article.id);
+                
+                const analyses = article.analyses || [];
+                const analysisMap = {
+                    'jargon': '📚 Όροι',
+                    'bias': '⚖️ Μεροληψία',
+                    'summary': '📝 Περίληψη'
+                };
+                
+                card.innerHTML = `
+                    <div class="article-title">${article.title}</div>
+                    <div class="article-meta">
+                        <span>🌐 ${article.source}</span>
+                        <span>📝 ${article.word_count} λέξεις</span>
+                        <span>📅 ${new Date(article.enrichment_date).toLocaleDateString('el-GR')}</span>
+                    </div>
+                    <div class="analysis-tags">
+                        ${analyses.map(a => `<span class="tag">${analysisMap[a] || a}</span>`).join('')}
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+        
+        function processArticle() {
+            const url = document.getElementById('articleUrl').value.trim();
+            
+            if (!url) {
+                showError('Παρακαλώ εισάγετε ένα URL');
+                return;
+            }
+            
+            const btn = document.getElementById('processBtn');
+            const loading = document.getElementById('loading');
+            
+            btn.disabled = true;
+            loading.style.display = 'block';
+            hideMessages();
+            
+            fetch('/process', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url: url })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showSuccess(`Το άρθρο "${data.title}" αναλύθηκε επιτυχώς!`);
+                    document.getElementById('articleUrl').value = '';
+                    loadArticles();
+                } else {
+                    showError(data.error || 'Σφάλμα κατά την επεξεργασία');
+                }
+            })
+            .catch(error => {
+                showError('Σφάλμα δικτύου: ' + error.message);
+            })
+            .finally(() => {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            });
+        }
+        
+        function viewArticle(articleId) {
+            fetch(`/article/${articleId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        showArticleModal(data.data);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading article:', error);
+                });
+        }
+        
+        function showArticleModal(data) {
+            const modal = document.getElementById('articleModal');
+            const content = document.getElementById('modalContent');
+            
+            const article = data.article;
+            const enrichments = data.enrichments;
+            
+            let html = `
+                <h1>${article.title}</h1>
+                <div class="article-meta" style="margin: 20px 0;">
+                    <span>🌐 ${article.source_domain}</span>
+                    <span>📝 ${article.word_count} λέξεις</span>
+                    <span>🔗 <a href="${article.url}" target="_blank">Πρωτότυπο άρθρο</a></span>
+                </div>
+                
+                <div style="margin: 30px 0; line-height: 1.8;">
+                    <h3>Περιεχόμενο</h3>
+                    <p>${article.content}</p>
+                </div>
+            `;
+            
+            // Add enrichments
+            if (enrichments.summary && enrichments.summary.summary) {
+                html += `
+                    <div class="enrichment-section">
+                        <h3>📝 Περίληψη</h3>
+                        <p>${enrichments.summary.summary}</p>
+                    </div>
+                `;
+            }
+            
+            if (enrichments.jargon && !enrichments.jargon.error) {
+                html += `
+                    <div class="enrichment-section">
+                        <h3>📚 Επεξήγηση Όρων</h3>
+                        <pre style="white-space: pre-wrap;">${JSON.stringify(enrichments.jargon, null, 2)}</pre>
+                    </div>
+                `;
+            }
+            
+            if (enrichments.bias && enrichments.bias.analysis) {
+                html += `
+                    <div class="enrichment-section">
+                        <h3>⚖️ Ανάλυση Μεροληψίας</h3>
+                        <p>${enrichments.bias.analysis}</p>
+                    </div>
+                `;
+            }
+            
+            content.innerHTML = html;
+            modal.style.display = 'block';
+        }
+        
+        function closeModal() {
+            document.getElementById('articleModal').style.display = 'none';
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+        }
+        
+        function hideMessages() {
+            document.getElementById('error').style.display = 'none';
+            document.getElementById('success').style.display = 'none';
+        }
+        
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('articleModal');
+            if (event.target == modal) {
+                closeModal();
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Επιβεβαιώθηκε - News Copilot</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .success-icon {
+            font-size: 64px;
+            color: #10b981;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #1f2937;
+            margin-bottom: 16px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        p {
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .features {
+            text-align: left;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 24px 0;
+        }
+        
+        .feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .feature:last-child {
+            margin-bottom: 0;
+        }
+        
+        .feature-icon {
+            color: #10b981;
+            margin-right: 12px;
+            font-weight: bold;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: background 0.2s;
+        }
+        
+        .cta-button:hover {
+            background: #5a67d8;
+        }
+        
+        .footer {
+            margin-top: 32px;
+            font-size: 14px;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-icon">✅</div>
+        <h1>Email Επιβεβαιώθηκε!</h1>
+        <p>Το email σας επιβεβαιώθηκε επιτυχώς. Ο λογαριασμός σας είναι πλέον ενεργός και μπορείτε να χρησιμοποιήσετε όλες τις δυνατότητες του News Copilot.</p>
+        
+        <div class="features">
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span>10 δωρεάν αναλύσεις ειδήσεων τον μήνα</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span>Επεξήγηση τεχνικών όρων και ακρωνυμίων</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span>Ανάλυση αξιοπιστίας και πηγών</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span>Εναλλακτικές οπτικές και απόψεις</span>
+            </div>
+            <div class="feature">
+                <span class="feature-icon">✓</span>
+                <span>Χρονολόγια γεγονότων</span>
+            </div>
+        </div>
+        
+        <a href="https://chrome.google.com/webstore" class="cta-button">
+            Εγκατάσταση Extension
+        </a>
+        
+        <div class="footer">
+            <p>Επισκεφθείτε ένα ελληνικό site ειδήσεων και δοκιμάστε το News Copilot!</p>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-close tab after 10 seconds if opened from extension
+        if (window.opener) {
+            setTimeout(() => {
+                window.close();
+            }, 10000);
+        }
+    </script>
+</body>
+</html>
