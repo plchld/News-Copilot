@@ -102,7 +102,8 @@ class ProcessingJob(TimestampedModel):
     ]
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='jobs')
+    article = models.ForeignKey(Article, on_delete=models.CASCADE, related_name='jobs', null=True, blank=True)
+    url = models.URLField(max_length=500, blank=True)  # Track URL even if article creation fails
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     job_type = models.CharField(max_length=50)  # 'extraction', 'enrichment', etc.
     celery_task_id = models.CharField(max_length=255, blank=True)

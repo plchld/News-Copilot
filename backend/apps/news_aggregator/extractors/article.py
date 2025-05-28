@@ -202,11 +202,19 @@ def setup_undetected_chrome():
         options.add_argument("--no-first-run")
         options.add_argument("--disable-default-apps")
         
-        # For ARM64 Macs, use specific version
-        if platform.system() == 'Darwin' and platform.machine() == 'arm64':
+        # Try different approaches for version compatibility
+        try:
+            # First try with auto-detection
             driver = uc.Chrome(options=options, version_main=None)
-        else:
-            driver = uc.Chrome(options=options)
+        except Exception as e1:
+            logger.debug(f"Auto-detection failed: {e1}")
+            try:
+                # Try with specific version (common current version)
+                driver = uc.Chrome(options=options, version_main=136)
+            except Exception as e2:
+                logger.debug(f"Version 136 failed: {e2}")
+                # Final fallback - let it detect automatically without version
+                driver = uc.Chrome(options=options)
             
         logger.info("Undetected Chrome WebDriver setup successful")
         return driver

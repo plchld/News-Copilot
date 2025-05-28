@@ -97,6 +97,7 @@ class Command(BaseCommand):
         # Create processing job (sync operation)
         job = await sync_to_async(ProcessingJob.objects.create)(
             article=None,  # Will be updated after extraction
+            url=url,  # Track URL even if extraction fails
             job_type='extraction',
             status='processing',
             started_at=timezone.now()
