@@ -1,0 +1,18 @@
+
+================================================================================
+🔍 Debugging VIEWPOINTS Agent
+📰 Article: https://www.kathimerini.gr/politics/foreign-policy/563630194/synetairoi-me-toyrkia-ypo-oroys/
+🎚️  Debug Level: minimal
+================================================================================
+
+📥 Extracting article content...
+[fetch_text] Attempting to fetch URL: https://www.kathimerini.gr/politics/foreign-policy/563630194/synetairoi-me-toyrkia-ypo-oroys/
+[fetch_text] Successfully downloaded content from https://www.kathimerini.gr/politics/foreign-policy/563630194/synetairoi-me-toyrkia-ypo-oroys/
+[fetch_text] Successfully extracted text from https://www.kathimerini.gr/politics/foreign-policy/563630194/synetairoi-me-toyrkia-ypo-oroys/
+✅ Article extracted successfully
+   Title: Article
+   Length: 6247 characters
+
+[fetch_text] Attempting to fetch URL: https://www.kathimerini.gr/politics/foreign-policy/563630194/synetairoi-me-toyrkia-ypo-oroys/
+[fetch_text] Successfully downloaded content from https://www.kathimerini.gr/politics/foreign-policy/563630194/synetairoi-me-toyrkia-ypo-oroys/
+[fetch_text] Successfully extracted text from https://www.kathimerini.gr/politics/foreign-policy/563630194/synetairoi-me-toyrkia-ypo-oroys/

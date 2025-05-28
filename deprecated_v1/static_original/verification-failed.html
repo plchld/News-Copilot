@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Επιβεβαίωση Απέτυχε - News Copilot</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        
+        .error-icon {
+            font-size: 64px;
+            color: #ef4444;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #1f2937;
+            margin-bottom: 16px;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        
+        p {
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        
+        .reasons {
+            text-align: left;
+            background: #fef2f2;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 24px 0;
+            border-left: 4px solid #ef4444;
+        }
+        
+        .reason {
+            margin-bottom: 8px;
+        }
+        
+        .reason:last-child {
+            margin-bottom: 0;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: background 0.2s;
+        }
+        
+        .cta-button:hover {
+            background: #5a67d8;
+        }
+        
+        .footer {
+            margin-top: 32px;
+            font-size: 14px;
+            color: #9ca3af;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-icon">❌</div>
+        <h1>Επιβεβαίωση Απέτυχε</h1>
+        <p>Δυστυχώς, δεν μπορέσαμε να επιβεβαιώσουμε το email σας. Αυτό μπορεί να οφείλεται σε έναν από τους παρακάτω λόγους:</p>
+        
+        <div class="reasons">
+            <div class="reason">• Ο σύνδεσμος έχει λήξει (ισχύει για 24 ώρες)</div>
+            <div class="reason">• Ο σύνδεσμος έχει ήδη χρησιμοποιηθεί</div>
+            <div class="reason">• Ο σύνδεσμος δεν είναι έγκυρος</div>
+            <div class="reason">• Τεχνικό πρόβλημα του συστήματος</div>
+        </div>
+        
+        <p>Δοκιμάστε να εγγραφείτε ξανά στο News Copilot extension για να λάβετε νέο σύνδεσμο επιβεβαίωσης.</p>
+        
+        <a href="mailto:support@news-copilot.com" class="cta-button">
+            Επικοινωνία Support
+        </a>
+        
+        <div class="footer">
+            <p>Χρειάζεστε βοήθεια; Στείλτε μας email και θα σας βοηθήσουμε!</p>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-close tab after 10 seconds if opened from extension
+        if (window.opener) {
+            setTimeout(() => {
+                window.close();
+            }, 15000);
+        }
+    </script>
+</body>
+</html>

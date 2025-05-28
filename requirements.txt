@@ -8,6 +8,10 @@ pydantic[email]==2.5.0
 supabase==2.8.1
 gotrue==2.8.1
 PyJWT==2.8.0
+colorama==0.4.6
+beautifulsoup4==4.12.3
+readability-lxml==0.8.1
+PyYAML==6.0.1
 
 # Testing dependencies
 pytest==7.4.3
