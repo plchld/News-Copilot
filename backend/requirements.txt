@@ -3,6 +3,7 @@ Django>=5.0,<6.0
 django-environ
 django-cors-headers
 django-debug-toolbar
+asgiref
 
 # Django REST Framework
 djangorestframework
@@ -29,8 +30,8 @@ trafilatura
 selenium
 beautifulsoup4
 lxml
-# Note: undetected-chromedriver is optional, install separately if needed
-# pip install undetected-chromedriver
+webdriver-manager
+undetected-chromedriver
 
 # Utilities
 python-slugify

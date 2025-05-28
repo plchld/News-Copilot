@@ -1,6 +1,6 @@
 """
-Article extraction module for Django
-Uses trafilatura with fallback to BeautifulSoup
+Enhanced article extraction module for Django
+Uses trafilatura with Selenium fallback for JavaScript-heavy sites
 """
 import trafilatura
 from typing import Dict, Optional, Any
@@ -10,6 +10,9 @@ from urllib.parse import urlparse
 import httpx
 from bs4 import BeautifulSoup
 import asyncio
+import time
+import re
+import platform
 
 from django.conf import settings
 from django.utils import timezone
@@ -179,15 +182,79 @@ class ArticleExtractor:
             return None
 
 
-class SeleniumArticleExtractor(ArticleExtractor):
+def setup_undetected_chrome():
+    """Setup undetected Chrome WebDriver that bypasses security issues"""
+    try:
+        import undetected_chromedriver as uc
+        
+        options = uc.ChromeOptions()
+        
+        # Headless mode
+        options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--window-size=1920,1080")
+        
+        # Additional options for stability
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--no-first-run")
+        options.add_argument("--disable-default-apps")
+        
+        # For ARM64 Macs, use specific version
+        if platform.system() == 'Darwin' and platform.machine() == 'arm64':
+            driver = uc.Chrome(options=options, version_main=None)
+        else:
+            driver = uc.Chrome(options=options)
+            
+        logger.info("Undetected Chrome WebDriver setup successful")
+        return driver
+        
+    except Exception as e:
+        logger.error(f"Undetected Chrome setup error: {e}")
+        raise
+
+
+def setup_regular_chrome():
+    """Setup regular Chrome WebDriver with standard options"""
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.chrome.service import Service
+        from webdriver_manager.chrome import ChromeDriverManager
+        
+        options = Options()
+        options.add_argument("--headless")
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--disable-blink-features=AutomationControlled")
+        
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=options)
+        
+        logger.info("Regular Chrome WebDriver setup successful")
+        return driver
+        
+    except Exception as e:
+        logger.error(f"Regular Chrome setup error: {e}")
+        raise
+
+
+class EnhancedArticleExtractor(ArticleExtractor):
     """
-    Enhanced extractor using Selenium for JavaScript-heavy sites
-    This is optional and requires selenium to be properly configured
+    Enhanced extractor with Selenium support for JavaScript-heavy sites
+    Migrated from legacy news-aggregator with full AMNA.gr support
     """
     
     def __init__(self):
         super().__init__()
+        self.driver = None
         self.selenium_available = self._check_selenium_available()
+        if self.selenium_available:
+            self._setup_driver()
     
     def _check_selenium_available(self) -> bool:
         """Check if Selenium is available and configured"""
@@ -199,23 +266,50 @@ class SeleniumArticleExtractor(ArticleExtractor):
             logger.warning("Selenium not available, falling back to basic extraction")
             return False
     
+    def _setup_driver(self):
+        """Setup Chrome WebDriver with appropriate options"""
+        try:
+            # Try undetected-chromedriver first (better for macOS security)
+            try:
+                self.driver = setup_undetected_chrome()
+                logger.info("Undetected WebDriver initialized successfully")
+            except:
+                # Fallback to regular setup
+                self.driver = setup_regular_chrome()
+                logger.info("Regular WebDriver initialized successfully")
+        except Exception as e:
+            logger.warning(f"Could not initialize WebDriver: {e}")
+            self.driver = None
+    
     async def extract(self, url: str) -> Optional[Dict[str, Any]]:
         """
-        Extract article with Selenium fallback for JS sites
+        Extract article with enhanced Selenium fallback for JS sites
         """
         # First try regular extraction
         result = await super().extract(url)
         
-        # If failed and URL requires JS, try Selenium
-        if not result and self.selenium_available and self._requires_javascript(url):
-            logger.info(f"Trying Selenium extraction for {url}")
+        # Check if we got meaningful content
+        if result and result.get('content') and len(result['content']) > 100:
+            logger.info(f"Basic extraction successful for {url}")
+            return result
+        
+        # If failed or insufficient content and URL requires JS, try Selenium
+        if self.selenium_available and self.driver and self._requires_javascript(url):
+            logger.info(f"Trying enhanced Selenium extraction for {url}")
             result = await self._extract_with_selenium(url)
         
         return result
     
     def _requires_javascript(self, url: str) -> bool:
         """Check if URL likely requires JavaScript"""
-        js_sites = ['amna.gr', 'cnn.gr', 'skai.gr']  # Add more as needed
+        js_sites = [
+            'amna.gr',      # Angular-based
+            'cnn.gr',       # React/JavaScript
+            'skai.gr',      # JavaScript-heavy
+            'ant1news.gr',  # Dynamic loading
+            'star.gr',      # JavaScript content
+            'real.gr'       # Dynamic content
+        ]
         domain = urlparse(url).netloc
         return any(site in domain for site in js_sites)
     
@@ -224,38 +318,174 @@ class SeleniumArticleExtractor(ArticleExtractor):
         loop = asyncio.get_event_loop()
         return await loop.run_in_executor(None, self._selenium_extract_sync, url)
     
-    def _selenium_extract_sync(self, url: str) -> Optional[Dict[str, Any]]:
-        """Synchronous Selenium extraction"""
-        from selenium import webdriver
-        from selenium.webdriver.chrome.options import Options
-        from selenium.webdriver.common.by import By
-        from selenium.webdriver.support.ui import WebDriverWait
-        from selenium.webdriver.support import expected_conditions as EC
+    def _selenium_extract_sync(self, url: str, wait_time: int = 5) -> Optional[Dict[str, Any]]:
+        """
+        Synchronous Selenium extraction with enhanced Greek news site support
+        Migrated from legacy EnhancedExtractor with full functionality
+        """
+        if not self.driver:
+            logger.error("WebDriver not available")
+            return None
         
-        options = Options()
-        options.add_argument('--headless')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--disable-dev-shm-usage')
-        
-        driver = None
         try:
-            driver = webdriver.Chrome(options=options)
-            driver.get(url)
+            logger.info(f"Loading URL with JavaScript: {url}")
+            self.driver.get(url)
             
-            # Wait for content to load
-            WebDriverWait(driver, 10).until(
-                EC.presence_of_element_located((By.TAG_NAME, "article"))
-            )
+            # Enhanced waiting logic for Angular/JavaScript sites
+            if 'amna.gr' in url:
+                logger.info("Detected AMNA site, waiting for Angular...")
+                time.sleep(wait_time + 3)  # Extra time for Angular
+                
+                # Try to wait for specific Angular elements
+                try:
+                    from selenium.webdriver.support.ui import WebDriverWait
+                    from selenium.webdriver.support import expected_conditions as EC
+                    from selenium.webdriver.common.by import By
+                    
+                    # Wait for any ng-binding or article element
+                    wait = WebDriverWait(self.driver, 10)
+                    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "[ng-bind-html], .article-body, .content")))
+                except Exception as e:
+                    logger.debug(f"Angular wait failed, continuing: {e}")
+                    pass
+            else:
+                time.sleep(wait_time)
             
-            # Get the rendered HTML
-            html = driver.page_source
+            # Get page source after JS execution
+            page_source = self.driver.page_source
             
-            # Use regular extraction on the rendered HTML
-            return self._extract_with_trafilatura(html, url)
+            # Parse with BeautifulSoup
+            soup = BeautifulSoup(page_source, 'html.parser')
+            
+            # Enhanced content selectors for Greek news sites
+            content_selectors = [
+                '[ng-bind-html]',     # Angular binding (AMNA specific)
+                '.article-text',
+                '.article-content',
+                '.content',
+                '.article-body',
+                '.main-content',
+                '[class*="content"]',
+                '[class*="article"]',
+                '.entry-content',
+                '.post-content',
+                'article',
+                '[data-article]',
+                '.news-content',
+                '.text-content',
+                '.story-body',        # CNN.gr
+                '.article-wrapper',   # Various sites
+                '.news-article',      # News sites
+                '.post-body'          # Blog-style sites
+            ]
+            
+            content = ""
+            title_found = ""
+            
+            # Enhanced title extraction
+            title_selectors = [
+                'h1',
+                '.article-title',
+                '.title',
+                '[class*="title"]',
+                '.headline',
+                '.story-headline',
+                'h1.entry-title'
+            ]
+            
+            for selector in title_selectors:
+                elements = soup.select(selector)
+                if elements:
+                    potential_title = elements[0].get_text(strip=True)
+                    if len(potential_title) > 10 and len(potential_title) < 300:
+                        title_found = potential_title
+                        logger.info(f"Found title: {title_found[:50]}...")
+                        break
+            
+            # Enhanced content extraction
+            for selector in content_selectors:
+                elements = soup.select(selector)
+                if elements:
+                    potential_content = elements[0].get_text(strip=True)
+                    if len(potential_content) > 100:  # Ensure meaningful content
+                        content = potential_content
+                        logger.info(f"Found content with selector: {selector}")
+                        break
+            
+            # If no specific content found, try enhanced body extraction
+            if not content or len(content) < 100:
+                logger.info("Trying enhanced body extraction")
+                body = soup.find('body')
+                if body:
+                    # Remove unwanted elements
+                    for script in body(["script", "style", "nav", "header", "footer", "aside", "form", "iframe"]):
+                        script.decompose()
+                    
+                    # Get all paragraphs with better filtering
+                    paragraphs = body.find_all('p')
+                    if paragraphs:
+                        # Filter paragraphs by length and content quality
+                        good_paragraphs = []
+                        for p in paragraphs:
+                            text = p.get_text(strip=True)
+                            if (len(text) > 20 and 
+                                not text.lower().startswith(('cookie', 'javascript', 'advertisement')) and
+                                'cookie' not in text.lower()):
+                                good_paragraphs.append(text)
+                        
+                        if good_paragraphs:
+                            content = ' '.join(good_paragraphs)
+                    
+                    # Final fallback to all text
+                    if not content:
+                        content = body.get_text(strip=True)
+            
+            # Clean up content
+            content = re.sub(r'\s+', ' ', content).strip()
+            
+            # Remove common Greek site clutter
+            content = re.sub(r'(Διαβάστε επίσης|Περισσότερα|Αναλυτικά|Δείτε όλα|Περισσότερες πληροφορίες).*?$', '', content, flags=re.MULTILINE)
+            
+            # Use found title if better than page title
+            page_title = self.driver.title
+            if title_found and (not page_title or "Αθηναϊκό - Μακεδονικό πρακτορείο ειδήσεων" in page_title):
+                title = title_found
+            else:
+                title = page_title
+            
+            if not content or len(content) < 50:
+                logger.warning(f"Insufficient content extracted from {url}")
+                return None
+            
+            # Build result compatible with Django extractor format
+            result = {
+                'title': title,
+                'content': content,
+                'author': '',
+                'published_at': None,
+                'url': url,
+                'extracted_at': timezone.now(),
+                'domain': urlparse(url).netloc,
+                'extraction_method': 'selenium'
+            }
+            
+            logger.info(f"Selenium extraction successful: {len(content)} characters")
+            return result
             
         except Exception as e:
-            logger.error(f"Selenium extraction error: {str(e)}")
+            logger.error(f"Error extracting with Selenium: {e}")
             return None
-        finally:
-            if driver:
-                driver.quit()
+    
+    def close(self):
+        """Close the WebDriver"""
+        if self.driver:
+            try:
+                self.driver.quit()
+                logger.info("WebDriver closed")
+            except:
+                pass
+            self.driver = None
+    
+    def __del__(self):
+        """Cleanup WebDriver on object destruction"""
+        self.close()

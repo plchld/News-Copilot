@@ -8,7 +8,7 @@ import asyncio
 import logging
 
 from apps.news_aggregator.models import Article, NewsSource, ProcessingJob
-from apps.news_aggregator.extractors.article import ArticleExtractor
+from apps.news_aggregator.extractors.article import ArticleExtractor, EnhancedArticleExtractor
 from apps.news_aggregator.agents.coordinator import AgentCoordinator
 
 logger = logging.getLogger(__name__)
@@ -29,16 +29,22 @@ class Command(BaseCommand):
             action='store_true',
             help='Force reprocessing even if article exists'
         )
+        parser.add_argument(
+            '--enhanced',
+            action='store_true',
+            help='Use enhanced Selenium extractor for JavaScript sites'
+        )
     
     def handle(self, *args, **options):
         url = options['url']
         analyze = options['analyze']
         force = options['force']
+        enhanced = options['enhanced']
         
         self.stdout.write(f"Processing article: {url}")
         
         try:
-            # Check if article already exists
+            # Check if article already exists (sync operation)
             existing_article = Article.objects.filter(url=url).first()
             if existing_article and not force:
                 self.stdout.write(
@@ -50,8 +56,9 @@ class Command(BaseCommand):
                 return
             
             # Extract article
-            self.stdout.write("Extracting article content...")
-            article = asyncio.run(self._extract_article(url))
+            extractor_type = "Enhanced Selenium" if enhanced else "Basic"
+            self.stdout.write(f"Extracting article content using {extractor_type} extractor...")
+            article = asyncio.run(self._extract_article(url, enhanced))
             
             if article:
                 self.stdout.write(
@@ -69,12 +76,26 @@ class Command(BaseCommand):
         except Exception as e:
             raise CommandError(f"Error processing article: {str(e)}")
     
-    async def _extract_article(self, url: str) -> Article:
+    async def _extract_article(self, url: str, enhanced: bool = False) -> Article:
         """Extract article using the article extractor"""
-        extractor = ArticleExtractor()
+        from asgiref.sync import sync_to_async
         
-        # Create processing job
-        job = ProcessingJob.objects.create(
+        # Choose extractor based on enhanced flag or URL domain
+        if enhanced:
+            extractor = EnhancedArticleExtractor()
+            self.stdout.write("Using Enhanced Selenium extractor...")
+        else:
+            # Auto-detect if we need enhanced extraction for JavaScript sites
+            js_sites = ['amna.gr', 'cnn.gr', 'skai.gr', 'ant1news.gr', 'star.gr', 'real.gr']
+            if any(site in url for site in js_sites):
+                extractor = EnhancedArticleExtractor()
+                self.stdout.write("Auto-detected JavaScript site, using Enhanced Selenium extractor...")
+            else:
+                extractor = ArticleExtractor()
+                self.stdout.write("Using basic extractor...")
+        
+        # Create processing job (sync operation)
+        job = await sync_to_async(ProcessingJob.objects.create)(
             article=None,  # Will be updated after extraction
             job_type='extraction',
             status='processing',
@@ -88,9 +109,9 @@ class Command(BaseCommand):
             if not article_data:
                 raise Exception("Failed to extract article content")
             
-            # Get or create news source
+            # Get or create news source (sync operation)
             domain = self._get_domain_from_url(url)
-            source, _ = NewsSource.objects.get_or_create(
+            source, _ = await sync_to_async(NewsSource.objects.get_or_create)(
                 domain=domain,
                 defaults={
                     'name': domain,
@@ -99,8 +120,8 @@ class Command(BaseCommand):
                 }
             )
             
-            # Create article
-            article = Article.objects.create(
+            # Create article (sync operation)
+            article = await sync_to_async(Article.objects.create)(
                 url=url,
                 title=article_data.get('title', ''),
                 content=article_data.get('content', ''),
@@ -112,28 +133,37 @@ class Command(BaseCommand):
                 is_processed=True
             )
             
-            # Update job
+            # Update job (sync operation)
             job.article = article
             job.status = 'completed'
             job.completed_at = timezone.now()
-            job.save()
+            await sync_to_async(job.save)()
+            
+            # Clean up enhanced extractor if used
+            if hasattr(extractor, 'close'):
+                extractor.close()
             
             return article
             
         except Exception as e:
-            # Update job with error
+            # Clean up enhanced extractor if used
+            if hasattr(extractor, 'close'):
+                extractor.close()
+                
+            # Update job with error (sync operation)
             job.status = 'failed'
             job.error_message = str(e)
             job.completed_at = timezone.now()
-            job.save()
+            await sync_to_async(job.save)()
             raise
     
     async def _analyze_article(self, article: Article):
         """Run AI analysis on the article"""
+        from asgiref.sync import sync_to_async
         coordinator = AgentCoordinator()
         
-        # Create processing job
-        job = ProcessingJob.objects.create(
+        # Create processing job (sync operation)
+        job = await sync_to_async(ProcessingJob.objects.create)(
             article=article,
             job_type='enrichment',
             status='processing',
@@ -147,12 +177,11 @@ class Command(BaseCommand):
                 article_id=str(article.id)
             )
             
-            # Save results
+            # Save results (sync operations)
+            from apps.news_aggregator.models import AIAnalysis
             for agent_name, result in results.items():
                 if result.success and result.data:
-                    from apps.news_aggregator.models import AIAnalysis
-                    
-                    AIAnalysis.objects.update_or_create(
+                    await sync_to_async(AIAnalysis.objects.update_or_create)(
                         article=article,
                         analysis_type=agent_name,
                         defaults={
@@ -162,25 +191,25 @@ class Command(BaseCommand):
                         }
                     )
             
-            # Mark article as enriched
+            # Mark article as enriched (sync operation)
             article.is_enriched = True
-            article.save()
+            await sync_to_async(article.save)()
             
-            # Update job
+            # Update job (sync operation)
             job.status = 'completed'
             job.completed_at = timezone.now()
-            job.save()
+            await sync_to_async(job.save)()
             
             self.stdout.write(
                 self.style.SUCCESS(f"Analysis completed for article: {article.id}")
             )
             
         except Exception as e:
-            # Update job with error
+            # Update job with error (sync operation)
             job.status = 'failed'
             job.error_message = str(e)
             job.completed_at = timezone.now()
-            job.save()
+            await sync_to_async(job.save)()
             
             self.stdout.write(
                 self.style.ERROR(f"Analysis failed: {str(e)}")

@@ -197,6 +197,11 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 XAI_API_KEY = env('XAI_API_KEY', default='')
 OPENAI_API_KEY = env('OPENAI_API_KEY', default='')
 
+# Make XAI_API_KEY available globally for the agents
+import os
+if XAI_API_KEY:
+    os.environ['XAI_API_KEY'] = XAI_API_KEY
+
 # News Aggregator Settings
 NEWS_AGGREGATOR = {
     'EXPORT_DIR': BASE_DIR / 'data' / 'exports',
