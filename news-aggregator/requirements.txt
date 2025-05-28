@@ -10,3 +10,6 @@ openai==1.51.2
 playwright==1.41.0
 selenium==4.15.0
 webdriver-manager==4.0.1
+selenium==4.33.0
+webdriver_manager==4.0.2
+undetected_chromedriver==3.5.5
