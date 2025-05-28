@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:17
+    container_name: news-copilot-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-newscopilot_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-newscopilot_pass123}
+      POSTGRES_DB: ${POSTGRES_DB:-newscopilot_db}
+    ports:
+      - "${POSTGRES_PORT:-5499}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-newscopilot_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:8
+    container_name: news-copilot-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-newscopilot_admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-newscopilot_mongo123}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-newscopilot_mongo}
+    ports:
+      - "${MONGO_PORT:-27099}:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    name: news-copilot-postgres-data
+  mongodb_data:
+    name: news-copilot-mongodb-data
+  mongodb_config:
+    name: news-copilot-mongodb-config

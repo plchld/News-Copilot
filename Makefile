@@ -75,25 +75,48 @@ clean: ## Clean temporary files
 .PHONY: setup-env
 setup-env: ## Create .env file from example
 	@if [ ! -f .env ]; then \
-		echo "Creating .env file..."; \
-		echo "# API Keys" > .env; \
-		echo "XAI_API_KEY=" >> .env; \
-		echo "" >> .env; \
-		echo "# Supabase Configuration" >> .env; \
-		echo "SUPABASE_URL=" >> .env; \
-		echo "SUPABASE_ANON_KEY=" >> .env; \
-		echo "SUPABASE_SERVICE_KEY=" >> .env; \
-		echo "" >> .env; \
-		echo "# Local Development" >> .env; \
-		echo "BASE_URL=http://localhost:8080" >> .env; \
-		echo "FLASK_PORT=8080" >> .env; \
-		echo "DEBUG_MODE=true" >> .env; \
-		echo "AUTH_REQUIRED=false" >> .env; \
-		echo "" >> .env; \
-		echo ".env file created. Please add your API keys."; \
+		if [ -f .env.example ]; then \
+			cp .env.example .env; \
+			echo "✅ Created .env file from .env.example"; \
+			echo "⚠️  Please update the values in .env with your actual credentials"; \
+		else \
+			echo "❌ .env.example not found!"; \
+			exit 1; \
+		fi; \
 	else \
 		echo ".env file already exists."; \
 	fi
+
+.PHONY: db-up
+db-up: ## Start database containers
+	@echo "🚀 Starting PostgreSQL and MongoDB containers..."
+	docker-compose up -d
+	@echo "⏳ Waiting for databases to be ready..."
+	@sleep 5
+	@echo "✅ Databases are running!"
+	@echo "PostgreSQL: localhost:5433"
+	@echo "MongoDB: localhost:27018"
+
+.PHONY: db-down
+db-down: ## Stop database containers
+	@echo "🛑 Stopping database containers..."
+	docker-compose down
+	@echo "✅ Databases stopped!"
+
+.PHONY: db-clean
+db-clean: ## Stop and remove database containers and volumes
+	@echo "🧹 Cleaning up database containers and volumes..."
+	docker-compose down -v
+	@echo "✅ Database cleanup complete!"
+
+.PHONY: db-logs
+db-logs: ## Show database container logs
+	docker-compose logs -f
+
+.PHONY: setup
+setup: setup-env db-up install ## Complete setup: env, databases, and dependencies
+	@echo "✅ Setup complete! Your development environment is ready."
+	@echo "📝 Don't forget to update your .env file with actual credentials!"
 
 .PHONY: debug-grok
 debug-grok: ## Debug Grok API connection

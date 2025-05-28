@@ -7,9 +7,14 @@
 The new news aggregator system is in `news-aggregator/`:
 
 ```bash
+# Complete setup with databases and dependencies
+make setup
+
+# Or manual setup:
 cd news-aggregator
 pip install -r requirements.txt
 cp .env.example .env  # Add your XAI_API_KEY
+docker-compose up -d  # Start PostgreSQL and MongoDB
 python web_app.py     # Start web interface
 ```
 
@@ -22,6 +27,7 @@ Visit http://localhost:5001 to use the new system.
 - 💾 **Structured Storage**: Article indexing and management
 - 🎯 **Better UX**: Improved web interface with real-time updates
 - 📊 **Analytics**: Storage statistics and processing metrics
+- 🗄️ **Database Support**: PostgreSQL and MongoDB containers with Docker
 
 ## Architecture
 

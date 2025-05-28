@@ -34,7 +34,20 @@ A sophisticated news aggregation system that extracts articles from Greek news s
    pip install -r requirements.txt
    ```
 
-2. **Test Core System**
+2. **Database Setup** (Required for storage features)
+   ```bash
+   # Start PostgreSQL and MongoDB containers
+   docker-compose up -d
+   
+   # Or use the Makefile command
+   make db-up
+   
+   # Default ports:
+   # - PostgreSQL: localhost:5433 (instead of standard 5432)
+   # - MongoDB: localhost:27018 (instead of standard 27017)
+   ```
+
+3. **Test Core System**
    ```bash
    # Test article extraction
    python test_amna_article.py
@@ -43,7 +56,7 @@ A sophisticated news aggregation system that extracts articles from Greek news s
    python test_comprehensive_system.py
    ```
 
-3. **Launch Web Interface**
+4. **Launch Web Interface**
    ```bash
    python web_app.py
    # Open http://localhost:5001
@@ -120,6 +133,43 @@ PROCESSED_DIR = "data/processed"  # Processed articles
 ENRICHED_DIR = "data/enriched"   # AI-enriched articles
 ```
 
+### Database Configuration
+
+**PostgreSQL** (Port 5433):
+- User: `newscopilot_user`
+- Password: `newscopilot_pass123`
+- Database: `newscopilot_db`
+- Connection: `postgresql://newscopilot_user:newscopilot_pass123@localhost:5433/newscopilot_db`
+
+**MongoDB** (Port 27018):
+- Root User: `newscopilot_admin`
+- Root Password: `newscopilot_mongo123`
+- Database: `newscopilot_mongo`
+- Connection: `mongodb://newscopilot_admin:newscopilot_mongo123@localhost:27018/newscopilot_mongo?authSource=admin`
+
+**Docker Commands**:
+```bash
+# Start databases
+make db-up
+# or
+docker-compose up -d
+
+# Stop databases
+make db-down
+# or
+docker-compose down
+
+# View logs
+make db-logs
+# or
+docker-compose logs -f
+
+# Clean up (removes data)
+make db-clean
+# or
+docker-compose down -v
+```
+
 ## 🎯 Supported Sites
 
 ### Primary Support
@@ -174,7 +224,7 @@ python web_app.py
 ## 🛣️ Roadmap
 
 ### Immediate (v2.1)
-- [ ] Database integration (PostgreSQL/SQLite)
+- [x] Database integration (PostgreSQL/MongoDB with Docker)
 - [ ] RSS feed monitoring
 - [ ] Scheduled article collection
 - [ ] User authentication
