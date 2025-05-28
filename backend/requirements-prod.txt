@@ -1,0 +1,17 @@
+# Base requirements
+-r requirements.txt
+
+# Production-specific
+gunicorn
+whitenoise
+django-storages
+boto3
+sentry-sdk
+
+# Monitoring
+django-prometheus
+psutil
+
+# Security
+django-ratelimit
+django-csp

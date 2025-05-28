@@ -1,0 +1,36 @@
+# Django Core
+Django>=5.0,<6.0
+django-environ
+django-cors-headers
+
+# Django REST Framework
+djangorestframework
+djangorestframework-simplejwt
+drf-spectacular
+django-filter
+
+# Database
+psycopg[binary]
+pymongo
+
+# Celery & Redis
+celery[redis]
+django-celery-beat
+django-celery-results
+
+# AI & Processing
+httpx
+pydantic
+pydantic-settings
+
+# News Processing
+trafilatura
+selenium
+beautifulsoup4
+lxml
+# Note: undetected-chromedriver is optional, install separately if needed
+# pip install undetected-chromedriver
+
+# Utilities
+python-slugify
+Pillow

@@ -1,0 +1,21 @@
+# Base requirements
+-r requirements.txt
+
+# Development tools
+django-debug-toolbar
+django-extensions
+ipython
+
+# Testing
+pytest
+pytest-django
+pytest-cov
+factory-boy
+faker
+
+# Code quality
+black
+flake8
+isort
+mypy
+django-stubs

@@ -2,22 +2,32 @@
 
 .PHONY: install
 install: ## Install all dependencies
-	pip install -r requirements.txt
-	cd web && npm install
+	cd backend && pip install -r requirements.txt
+	cd frontend && pnpm install
+
+.PHONY: install-dev
+install-dev: ## Install development dependencies
+	cd backend && pip install -r requirements-dev.txt
+	cd frontend && pnpm install
+
+.PHONY: install-minimal
+install-minimal: ## Install minimal dependencies for quick setup
+	cd backend && pip install -r requirements-minimal.txt
 
 .PHONY: migrate
-migrate: ## Run API migration script
-	python migrate_api.py
+migrate: ## Run Django migrations
+	cd backend && python manage.py makemigrations
+	cd backend && python manage.py migrate
 
 .PHONY: run-api
-run-api: ## Start Flask API server only
-	@echo "🚀 Starting API server on http://localhost:8080..."
-	cd api && python index.py
+run-api: ## Start Django API server
+	@echo "🚀 Starting Django API server on http://localhost:8000..."
+	cd backend && python manage.py runserver
 
 .PHONY: run-web
-run-web: ## Start Next.js web app only
-	@echo "🚀 Starting web app on http://localhost:3000..."
-	cd web && npm run dev
+run-web: ## Start Next.js web app
+	@echo "🚀 Starting Next.js app on http://localhost:3000..."
+	cd frontend && pnpm run dev
 
 .PHONY: run-production
 run-production: ## Start both servers together (mirrors Vercel deployment)
@@ -55,7 +65,7 @@ lint: ## Run linters
 	@echo "Linting Python code..."
 	flake8 api/ --max-line-length=120 --exclude=__pycache__,venv,deprecated || true
 	@echo "Linting TypeScript code..."
-	cd web && npm run lint || true
+	cd web && pnpm run lint || true
 
 .PHONY: format
 format: ## Format code

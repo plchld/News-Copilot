@@ -1,0 +1,1 @@
+default_app_config = 'apps.news_aggregator.apps.NewsAggregatorConfig'
