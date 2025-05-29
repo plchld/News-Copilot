@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export default function BriefLandingPage() {
   const [mounted, setMounted] = useState(false);
@@ -12,11 +13,16 @@ export default function BriefLandingPage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-black overflow-hidden">
+    <main className="min-h-screen overflow-hidden">
       {/* Ambient background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="ambient-orb ambient-orb-blue w-[1000px] h-[1000px] -top-1/2 -right-1/2" />
         <div className="ambient-orb ambient-orb-violet w-[800px] h-[800px] -bottom-1/2 -left-1/2" />
+      </div>
+
+      {/* Theme toggle in top right */}
+      <div className="absolute top-6 right-6 z-20">
+        <ThemeToggle />
       </div>
 
       {/* Hero section */}
@@ -24,7 +30,7 @@ export default function BriefLandingPage() {
         <div className="relative z-10 max-w-5xl mx-auto text-center">
           {/* Accent text */}
           <motion.p
-            className="text-xs uppercase tracking-[0.2em] text-white/30 mb-8 no-select"
+            className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] mb-8 no-select"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 20 }}
             transition={{ duration: 0.8, delay: 0.1 }}
@@ -58,7 +64,7 @@ export default function BriefLandingPage() {
           <motion.p className="tagline text-lg md:text-xl mt-8 animate-fade-up animation-delay-800">
             5 stories. 5 minutes. No noise.
           </motion.p>
-          <motion.p className="text-sm text-white/40 mt-3 animate-fade-up animation-delay-900 max-w-lg mx-auto">
+          <motion.p className="text-sm text-[var(--text-tertiary)] mt-3 animate-fade-up animation-delay-900 max-w-lg mx-auto">
             A finite daily brief that goes as deep as you need. From surface summary to full context—on demand.
           </motion.p>
 
@@ -74,17 +80,17 @@ export default function BriefLandingPage() {
           </motion.div>
 
           {/* Philosophy indicators */}
-          <motion.div className="flex flex-wrap items-center justify-center gap-8 mt-20 text-xs text-white/30 animate-fade-up animation-delay-1000">
+          <motion.div className="flex flex-wrap items-center justify-center gap-8 mt-20 text-xs text-[var(--text-muted)] animate-fade-up animation-delay-1000">
             <span className="flex items-center gap-2 no-select">
-              <div className="w-1 h-1 rounded-full bg-white/30" />
+              <div className="w-1 h-1 rounded-full bg-[var(--text-muted)]" />
               Curated intelligence
             </span>
             <span className="flex items-center gap-2 no-select">
-              <div className="w-1 h-1 rounded-full bg-white/30" />
+              <div className="w-1 h-1 rounded-full bg-[var(--text-muted)]" />
               Progressive depth
             </span>
             <span className="flex items-center gap-2 no-select">
-              <div className="w-1 h-1 rounded-full bg-white/30" />
+              <div className="w-1 h-1 rounded-full bg-[var(--text-muted)]" />
               Finite by design
             </span>
           </motion.div>
@@ -102,7 +108,7 @@ export default function BriefLandingPage() {
             ease: 'easeInOut',
           }}
         >
-          <div className="w-[1px] h-16 bg-gradient-to-b from-white/20 to-transparent" />
+          <div className="w-[1px] h-16 bg-gradient-to-b from-[var(--text-muted)] to-transparent" />
         </motion.div>
       </section>
     </main>

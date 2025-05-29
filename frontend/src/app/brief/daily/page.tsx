@@ -7,6 +7,7 @@ import { Headphones, BookOpen, CheckCircle } from 'lucide-react';
 import StoryCard from '@/components/story/StoryCard';
 import AudioPlayer from '@/components/audio/AudioPlayer';
 import { BriefLoadingSkeleton } from '@/components/ui/SkeletonLoading';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 // Hard-coded daily stories (max 5 - NEVER show more)
 const dailyStories = [
@@ -160,25 +161,29 @@ export default function DailyBriefPage() {
   );
 
   return (
-    <main className="min-h-screen bg-black">
+    <main className="min-h-screen">
       {/* Fixed header */}
-      <header className="fixed inset-x-0 top-0 z-top glass-premium border-b border-white/5">
+      <header className="fixed inset-x-0 top-0 z-top glass-premium border-b border-[var(--border-primary)]">
         <div className="mx-auto max-w-4xl px-6 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-400">Thursday, May 29</p>
-              <h1 className="text-xl font-serif text-white">Your Brief</h1>
+              <p className="text-sm text-[var(--text-muted)]">Thursday, May 29</p>
+              <h1 className="text-xl font-serif text-[var(--text-primary)]">Your Brief</h1>
             </div>
 
-            {/* Mode toggle */}
-            <div className="flex items-center gap-2 p-1 bg-white/[0.03] rounded-xl">
+            <div className="flex items-center gap-4">
+              {/* Theme toggle */}
+              <ThemeToggle />
+              
+              {/* Mode toggle */}
+              <div className="flex items-center gap-2 p-1 glass-subtle-premium rounded-xl">
               <button
                 onClick={() => setAudioMode(true)}
                 className={`
                   px-4 py-2 rounded-lg text-sm font-medium transition-all
                   ${audioMode
-                    ? 'bg-white/10 text-white'
-                    : 'text-white/60 hover:text-white/80'}
+                    ? 'bg-[var(--hover-overlay)] text-[var(--text-primary)]'
+                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}
                 `}
               >
                 <span className="flex items-center gap-2">
@@ -191,8 +196,8 @@ export default function DailyBriefPage() {
                 className={`
                   px-4 py-2 rounded-lg text-sm font-medium transition-all
                   ${!audioMode
-                    ? 'bg-white/10 text-white'
-                    : 'text-white/60 hover:text-white/80'}
+                    ? 'bg-[var(--hover-overlay)] text-[var(--text-primary)]'
+                    : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'}
                 `}
               >
                 <span className="flex items-center gap-2">
@@ -200,6 +205,7 @@ export default function DailyBriefPage() {
                   Read
                 </span>
               </button>
+              </div>
             </div>
           </div>
         </div>
@@ -238,18 +244,18 @@ export default function DailyBriefPage() {
             transition={{ delay: 0.6, duration: 0.5 }}
             className="mt-16 text-center"
           >
-            <div className="inline-flex items-center gap-3 px-6 py-3 bg-white/[0.03] rounded-full">
+            <div className="inline-flex items-center gap-3 px-6 py-3 glass-subtle-premium rounded-full">
               <CheckCircle className="w-5 h-5 text-green-500/70" />
-              <span className="text-white/60 text-sm">
+              <span className="text-[var(--text-tertiary)] text-sm">
                 That's everything for today
               </span>
             </div>
-            <p className="text-white/40 mt-4 text-sm">
+            <p className="text-[var(--text-muted)] mt-4 text-sm">
               No infinite scroll. No endless feeds. Just what matters.
             </p>
             <Link
               href="/"
-              className="inline-block text-white/30 hover:text-white/50 transition-colors text-sm mt-6"
+              className="inline-block text-[var(--text-muted)] hover:text-[var(--text-tertiary)] transition-colors text-sm mt-6"
             >
               ← Back to Home
             </Link>

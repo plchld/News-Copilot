@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { motion, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { useRouter } from 'next/navigation';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 // Mock onboarding stories for calibration
 const onboardingStories = [
@@ -114,17 +115,22 @@ export default function OnboardingPage() {
 
   if (currentIndex >= onboardingStories.length) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-black px-6">
+      <div className="flex min-h-screen flex-col items-center justify-center px-6">
+        {/* Theme toggle in top right */}
+        <div className="absolute top-6 right-6 z-20">
+          <ThemeToggle />
+        </div>
+        
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="max-w-md text-center"
         >
           <div className="mb-6 text-6xl">✨</div>
-          <h2 className="mb-4 text-2xl font-serif text-white">
+          <h2 className="mb-4 text-2xl font-serif text-[var(--text-primary)]">
             Perfect! We've calibrated your brief.
           </h2>
-          <p className="mb-8 text-gray-400">
+          <p className="mb-8 text-[var(--text-tertiary)]">
             Your personalized daily brief is ready, tailored to your interests.
           </p>
           <button
@@ -145,14 +151,19 @@ export default function OnboardingPage() {
   );
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen">
+      {/* Theme toggle in top right */}
+      <div className="absolute top-6 right-6 z-20">
+        <ThemeToggle />
+      </div>
+      
       {/* Header */}
       <div className="mx-auto max-w-4xl px-6 py-8">
         <div className="mb-8 text-center">
-          <h1 className="mb-2 text-2xl font-serif text-white">
+          <h1 className="mb-2 text-2xl font-serif text-[var(--text-primary)]">
             Calibrate Your Brief
           </h1>
-          <p className="text-gray-400">
+          <p className="text-[var(--text-tertiary)]">
             Swipe right for stories you'd want to read, left to skip
           </p>
         </div>
@@ -206,7 +217,7 @@ export default function OnboardingPage() {
                   style={isTop ? { x, rotate, opacity } : undefined}
                 >
                   <div
-                    className="h-full w-full cursor-grab rounded-2xl border border-gray-800 bg-gray-900 p-6 shadow-2xl active:cursor-grabbing"
+                    className="h-full w-full cursor-grab rounded-2xl glass-premium p-6 shadow-2xl active:cursor-grabbing"
                     style={{
                       transform: `rotate(${index === 1 ? -2 : index === 2 ? 2 : 0}deg)`,
                     }}
