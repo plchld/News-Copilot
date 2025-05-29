@@ -162,9 +162,20 @@ class ClaudeClient:
         # Use the client directly for proper system message handling
         response = await self.client.messages.create(**request_params)
         
-        # Extract the response content
+        # DEBUG: Log full response structure
+        logger.info(f"Full Claude response: {response}")
+        logger.info(f"Response content: {response.content}")
+        logger.info(f"Response usage: {getattr(response, 'usage', 'No usage')}")
+        logger.info(f"Response stop_reason: {getattr(response, 'stop_reason', 'No stop_reason')}")
+        
+        # Extract the response content - handle multiple content blocks for web search
         if response.content and len(response.content) > 0:
-            return response.content[0].text
+            # For web search responses, concatenate all text blocks
+            full_response = ""
+            for content_block in response.content:
+                if hasattr(content_block, 'text'):
+                    full_response += content_block.text
+            return full_response if full_response else response.content[0].text
         return ""
     
     async def create_structured_completion(
