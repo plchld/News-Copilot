@@ -1,23 +1,25 @@
-"use client";
+'use client';
 
-import { useQuery } from "@tanstack/react-query";
-import { apiHelpers } from "@/lib/api/client";
-import { formatDate, truncateText } from "@/lib/utils";
-import { Article } from "@/types";
-import { Loader2, ExternalLink, Calendar, User } from "lucide-react";
+import { useQuery } from '@tanstack/react-query';
+import { apiHelpers } from '@/lib/api/client';
+import { formatDate, truncateText } from '@/lib/utils';
+import { Article } from '@/types';
+import { Loader2, ExternalLink, Calendar, User } from 'lucide-react';
 
 export function RecentArticles() {
   const { data, isLoading, error } = useQuery({
-    queryKey: ["articles"],
+    queryKey: ['articles'],
     queryFn: async () => {
-      const response = await apiHelpers.getArticles({ limit: 20 });
-      return response.data.results as Article[];
+      const response = await apiHelpers.get<{ results: Article[] }>(
+        '/articles?limit=20',
+      );
+      return response.data.results;
     },
   });
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
+      <div className="rounded-lg bg-white p-6 shadow-sm">
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-primary-600" />
         </div>
@@ -27,8 +29,8 @@ export function RecentArticles() {
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="text-center py-12">
+      <div className="rounded-lg bg-white p-6 shadow-sm">
+        <div className="py-12 text-center">
           <p className="text-red-600">Error loading articles</p>
         </div>
       </div>
@@ -37,8 +39,8 @@ export function RecentArticles() {
 
   if (!data || data.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="text-center py-12">
+      <div className="rounded-lg bg-white p-6 shadow-sm">
+        <div className="py-12 text-center">
           <p className="text-gray-500">No articles found</p>
         </div>
       </div>
@@ -46,25 +48,25 @@ export function RecentArticles() {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm p-6">
-      <h2 className="text-lg font-semibold mb-4">Recent Articles</h2>
-      
+    <div className="rounded-lg bg-white p-6 shadow-sm">
+      <h2 className="mb-4 text-lg font-semibold">Recent Articles</h2>
+
       <div className="space-y-4">
         {data.map((article) => (
           <div
             key={article.id}
-            className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+            className="rounded-lg border p-4 transition-colors hover:bg-gray-50"
           >
-            <div className="flex justify-between items-start gap-4">
+            <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <h3 className="font-medium text-gray-900 mb-1">
+                <h3 className="mb-1 font-medium text-gray-900">
                   {article.title}
                 </h3>
-                
-                <p className="text-sm text-gray-600 mb-2">
+
+                <p className="mb-2 text-sm text-gray-600">
                   {truncateText(article.content, 150)}
                 </p>
-                
+
                 <div className="flex items-center gap-4 text-xs text-gray-500">
                   <span className="flex items-center gap-1">
                     <Calendar className="h-3 w-3" />
@@ -76,17 +78,17 @@ export function RecentArticles() {
                       {article.author}
                     </span>
                   )}
-                  <span className="px-2 py-1 bg-gray-100 rounded">
+                  <span className="rounded bg-gray-100 px-2 py-1">
                     {article.source_name}
                   </span>
                   {article.is_enriched && (
-                    <span className="px-2 py-1 bg-green-100 text-green-700 rounded">
+                    <span className="rounded bg-green-100 px-2 py-1 text-green-700">
                       Analyzed
                     </span>
                   )}
                 </div>
               </div>
-              
+
               <a
                 href={article.url}
                 target="_blank"

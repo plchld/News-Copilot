@@ -10,5 +10,6 @@
       "Bash(grep:*)"
     ],
     "deny": []
-  }
+  },
+  "enableAllProjectMcpServers": false
 }

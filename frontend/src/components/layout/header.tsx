@@ -1,22 +1,22 @@
-"use client";
+'use client';
 
-import { useAuthStore } from "@/lib/stores/auth-store";
-import { Button } from "@/components/ui/button";
-import { User, LogOut } from "lucide-react";
+import { useAuthStore } from '@/lib/stores/auth-store';
+import { Button } from '@/components/ui/button';
+import { User, LogOut } from 'lucide-react';
 
 export function Header() {
   const { user, logout } = useAuthStore();
 
   return (
-    <header className="bg-white shadow-sm border-b">
+    <header className="border-b bg-white shadow-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
             <h1 className="text-xl font-semibold text-gray-900">
               News Copilot
             </h1>
           </div>
-          
+
           <div className="flex items-center gap-4">
             {user ? (
               <>
@@ -24,7 +24,7 @@ export function Header() {
                   <User className="h-4 w-4" />
                   <span>{user.username}</span>
                   {user.is_premium && (
-                    <span className="px-2 py-1 bg-primary-100 text-primary-700 rounded text-xs">
+                    <span className="rounded bg-primary-100 px-2 py-1 text-xs text-primary-700">
                       Premium
                     </span>
                   )}

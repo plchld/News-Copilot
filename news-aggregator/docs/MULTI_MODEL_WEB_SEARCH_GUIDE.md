@@ -58,12 +58,140 @@ async for event in stream:
         print(event.delta.text, end="")
 ```
 
+**Prompt Caching with Web Search**:
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+# First request with web search and cache breakpoint
+messages = [
+    {
+        "role": "user",
+        "content": "What's the current weather in San Francisco today?"
+    }
+]
+
+response1 = client.messages.create(
+    model="claude-3-7-sonnet-latest",
+    max_tokens=1024,
+    messages=messages,
+    tools=[{
+        "type": "web_search_20250305",
+        "name": "web_search",
+        "user_location": {
+            "type": "approximate",
+            "city": "San Francisco",
+            "region": "California",
+            "country": "US",
+            "timezone": "America/Los_Angeles"
+        }
+    }]
+)
+
+# Add Claude's response to the conversation
+messages.append({
+    "role": "assistant",
+    "content": response1.content
+})
+
+# Second request with cache breakpoint after the search results
+messages.append({
+    "role": "user",
+    "content": "Should I expect rain later this week?",
+    "cache_control": {"type": "ephemeral"}  # Cache up to this point
+})
+
+response2 = client.messages.create(
+    model="claude-3-7-sonnet-latest",
+    max_tokens=1024,
+    messages=messages,
+    tools=[{
+        "type": "web_search_20250305",
+        "name": "web_search",
+        "user_location": {
+            "type": "approximate",
+            "city": "San Francisco",
+            "region": "California",
+            "country": "US",
+            "timezone": "America/Los_Angeles"
+        }
+    }]
+)
+
+# Check cache usage
+print(f"Cache read tokens: {response2.usage.get('cache_read_input_tokens', 0)}")
+```
+
+**Batch Processing with Web Search**:
+```python
+import anthropic
+from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
+from anthropic.types.messages.batch_create_params import Request
+
+client = anthropic.Anthropic()
+
+# Create batch with multiple web search requests
+message_batch = client.messages.batches.create(
+    requests=[
+        Request(
+            custom_id="article-analysis-1",
+            params=MessageCreateParamsNonStreaming(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2048,
+                messages=[{
+                    "role": "user",
+                    "content": "Analyze recent developments in AI safety regulations"
+                }],
+                tools=[{
+                    "type": "web_search_20250305",
+                    "name": "web_search",
+                    "max_uses": 3
+                }]
+            )
+        ),
+        Request(
+            custom_id="article-analysis-2", 
+            params=MessageCreateParamsNonStreaming(
+                model="claude-sonnet-4-20250514",
+                max_tokens=2048,
+                messages=[{
+                    "role": "user",
+                    "content": "Find alternative viewpoints on climate change policies"
+                }],
+                tools=[{
+                    "type": "web_search_20250305",
+                    "name": "web_search",
+                    "max_uses": 5,
+                    "blocked_domains": ["spam.com"]
+                }]
+            )
+        )
+    ]
+)
+
+# Monitor batch status
+batch_status = client.messages.batches.retrieve(message_batch.id)
+print(f"Batch status: {batch_status.processing_status}")
+
+# Process results when ready
+if batch_status.processing_status == "ended":
+    for result in client.messages.batches.results(message_batch.id):
+        if result.result.type == "succeeded":
+            print(f"Success for {result.custom_id}")
+            print(result.result.message.content[0].text)
+        elif result.result.type == "errored":
+            print(f"Error for {result.custom_id}: {result.result.error}")
+```
+
 #### Key Features
 - **Automatic Search Decision**: Claude decides when to search
 - **Domain Filtering**: Allow/block specific domains
 - **Geographic Localization**: Location-based search results
 - **Automatic Citations**: Source links included
 - **Native Async & Streaming**: Full async support
+- **Prompt Caching**: Efficient caching for multi-turn conversations with search results
+- **Batch Processing**: 50% cost reduction for bulk operations, up to 100k requests per batch
 
 #### Pricing
 - **$10 per 1,000 searches** + standard token costs

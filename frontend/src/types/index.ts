@@ -42,27 +42,27 @@ export interface AIAnalysis {
   id: string;
   analysis_type: AnalysisType;
   analysis_type_display: string;
-  result: any;
+  result: unknown;
   model_used: string;
   processing_time: number;
   created_at: string;
   created_by: string | null;
 }
 
-export type AnalysisType = 
-  | "jargon"
-  | "viewpoints"
-  | "fact_check"
-  | "bias"
-  | "timeline"
-  | "expert"
-  | "x_pulse";
+export type AnalysisType =
+  | 'jargon'
+  | 'viewpoints'
+  | 'fact_check'
+  | 'bias'
+  | 'timeline'
+  | 'expert'
+  | 'x_pulse';
 
 export interface ProcessingJob {
   id: string;
   article: string;
   article_title: string;
-  status: "pending" | "processing" | "completed" | "failed";
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   job_type: string;
   celery_task_id: string;
   error_message: string;
@@ -92,7 +92,7 @@ export interface ViewpointsResult {
 export interface FactCheckResult {
   claims: Array<{
     claim: string;
-    verdict: "true" | "false" | "misleading" | "unverifiable";
+    verdict: 'true' | 'false' | 'misleading' | 'unverifiable';
     explanation: string;
     sources?: string[];
   }>;
@@ -131,6 +131,6 @@ export interface XPulseResult {
   key_discussions: Array<{
     topic: string;
     summary: string;
-    engagement_level: "high" | "medium" | "low";
+    engagement_level: 'high' | 'medium' | 'low';
   }>;
 }
