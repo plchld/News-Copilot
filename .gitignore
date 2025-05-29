@@ -4,6 +4,9 @@
 .env.local
 .env.production
 
+# API Cost Tracking
+api_costs_log.json
+
 # Python cache
 __pycache__/
 *.py[cod]

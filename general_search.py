@@ -14,6 +14,7 @@ import requests
 from datetime import datetime
 import json
 import re
+from pathlib import Path
 
 # Add the backend directory to Python path and set up Django
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'backend'))
@@ -21,6 +22,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.development')
 django.setup()
 
 from backend.apps.news_aggregator.claude_client import get_claude_client
+from backend.apps.core.claude_pricing import calculate_conversation_cost, ClaudeTokenCounter, ClaudeModel
 
 
 # Country code mapping for better user experience
@@ -102,6 +104,50 @@ def read_prompt_file(file_path: str) -> tuple:
         return system_prompt, user_prompt
 
 
+def log_api_cost(cost_info: dict, prompt_file: str):
+    """Log API costs to a JSON file for tracking"""
+    if not cost_info:
+        return
+    
+    log_file = Path("api_costs_log.json")
+    
+    # Load existing log or create new
+    if log_file.exists():
+        with open(log_file, 'r') as f:
+            log_data = json.load(f)
+    else:
+        log_data = {
+            "total_cost_usd": 0,
+            "total_tokens": 0,
+            "total_calls": 0,
+            "calls": []
+        }
+    
+    # Add new entry
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "prompt_file": prompt_file,
+        "model": cost_info["model"],
+        "input_tokens": cost_info["input_tokens"],
+        "output_tokens": cost_info["output_tokens"],
+        "total_tokens": cost_info["total_tokens"],
+        "web_searches": cost_info.get("web_searches", 0),
+        "web_search_cost_usd": cost_info.get("web_search_cost_usd", 0),
+        "cost_usd": cost_info["total_cost_usd"]
+    }
+    
+    log_data["calls"].append(entry)
+    log_data["total_cost_usd"] += cost_info["total_cost_usd"]
+    log_data["total_tokens"] += cost_info["total_tokens"]
+    log_data["total_calls"] += 1
+    
+    # Save updated log
+    with open(log_file, 'w') as f:
+        json.dump(log_data, f, indent=2)
+    
+    return log_data["total_cost_usd"]
+
+
 class SearchClient:
     """Unified client for both Claude and Grok search"""
     
@@ -173,7 +219,7 @@ class SearchClient:
                         "type": "approximate",
                         "city": location_info["city"],
                         "region": location_info["region"],
-                        "country": location_info["country"],
+                        "country": country_code,
                         "timezone": location_info["timezone"]
                     }
                 }]
@@ -215,10 +261,34 @@ class SearchClient:
                     # for now, we'll use a simple approach
                     pass
             
+            # Calculate cost if usage data is available
+            cost_info = None
+            if hasattr(raw_response, 'usage'):
+                try:
+                    # Prepare messages for cost calculation
+                    messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt}
+                    ]
+                    
+                    # Get actual model name
+                    model_name = getattr(raw_response, 'model', 'claude-3-7-sonnet-20250219')
+                    
+                    # Calculate cost
+                    cost_info = calculate_conversation_cost(
+                        messages=messages,
+                        response=full_content,
+                        model_name=model_name,
+                        web_searches=search_count
+                    )
+                except Exception as e:
+                    print(f"⚠️  Could not calculate cost: {e}")
+            
             return {
                 "content": full_content,
                 "citations": citations,
                 "search_count": search_count,
+                "cost_info": cost_info,
                 "response_metadata": {
                     "model": raw_response.model,
                     "stop_reason": getattr(raw_response, 'stop_reason', None),
@@ -242,6 +312,7 @@ class SearchClient:
                 "content": response,
                 "citations": [],
                 "search_count": 0,
+                "cost_info": None,
                 "response_metadata": {}
             }
     
@@ -363,6 +434,29 @@ async def perform_search(client_type: str = "claude", prompt_file: str = "search
             
             if result["search_count"]:
                 print(f"🔍 Πραγματοποιήθηκαν {result['search_count']} αναζητήσεις στο διαδίκτυο")
+            
+            # Display cost information if available
+            if result.get("cost_info"):
+                cost = result["cost_info"]
+                print()
+                print("💰 **Κόστος API Κλήσης:**")
+                print(f"   📥 Input tokens: {cost['input_tokens']:,}")
+                print(f"   📤 Output tokens: {cost['output_tokens']:,}")
+                print(f"   🔢 Total tokens: {cost['total_tokens']:,}")
+                print(f"   💵 Input cost: ${cost['input_cost_usd']:.6f}")
+                print(f"   💵 Output cost: ${cost['output_cost_usd']:.6f}")
+                
+                # Add web search costs if applicable
+                if cost.get('web_searches', 0) > 0:
+                    print(f"   🔍 Web searches: {cost['web_searches']}")
+                    print(f"   💵 Web search cost: ${cost['web_search_cost_usd']:.6f}")
+                
+                print(f"   💰 Total cost: ${cost['total_cost_usd']:.6f}")
+                print(f"   🤖 Model: {cost['model']}")
+                
+                # Log the cost
+                total_cost = log_api_cost(cost, prompt_file)
+                print(f"   📊 Συνολικό κόστος όλων των κλήσεων: ${total_cost:.4f}")
                 
         else:  # grok
             result = search_client.search_with_grok(
@@ -383,6 +477,50 @@ async def perform_search(client_type: str = "claude", prompt_file: str = "search
         return False
     
     return True
+
+
+def show_cost_history():
+    """Display cost history from the log file"""
+    log_file = Path("api_costs_log.json")
+    
+    if not log_file.exists():
+        print("❌ No cost history found. Run some searches first!")
+        return
+    
+    with open(log_file, 'r') as f:
+        log_data = json.load(f)
+    
+    print("💰 **API Cost History**")
+    print("=" * 60)
+    print(f"📊 Total API calls: {log_data['total_calls']}")
+    print(f"🔢 Total tokens used: {log_data['total_tokens']:,}")
+    print(f"💵 Total cost: ${log_data['total_cost_usd']:.4f}")
+    
+    # Calculate total web searches
+    total_web_searches = sum(call.get('web_searches', 0) for call in log_data['calls'])
+    total_web_search_cost = sum(call.get('web_search_cost_usd', 0) for call in log_data['calls'])
+    
+    if total_web_searches > 0:
+        print(f"🔍 Total web searches: {total_web_searches}")
+        print(f"💵 Total web search cost: ${total_web_search_cost:.4f}")
+    
+    print()
+    
+    if log_data['total_calls'] > 0:
+        print(f"📈 Average cost per call: ${log_data['total_cost_usd']/log_data['total_calls']:.6f}")
+        print(f"📈 Average tokens per call: {log_data['total_tokens']/log_data['total_calls']:.0f}")
+        if total_web_searches > 0:
+            print(f"📈 Average web searches per call: {total_web_searches/log_data['total_calls']:.1f}")
+    
+    print()
+    print("📋 Recent calls (last 10):")
+    print("-" * 60)
+    
+    # Show last 10 calls
+    for call in log_data['calls'][-10:]:
+        timestamp = datetime.fromisoformat(call['timestamp']).strftime('%Y-%m-%d %H:%M:%S')
+        web_info = f" | 🔍 {call.get('web_searches', 0)}" if call.get('web_searches', 0) > 0 else ""
+        print(f"{timestamp} | {call['prompt_file']:20} | {call['total_tokens']:6,} tokens | ${call['cost_usd']:.6f}{web_info} | {call['model']}")
 
 
 def main():
@@ -419,7 +557,18 @@ def main():
         help='Data sources for Grok (only applies to --client grok)'
     )
     
+    parser.add_argument(
+        '--cost-history',
+        action='store_true',
+        help='Show API cost history and exit'
+    )
+    
     args = parser.parse_args()
+    
+    # If cost history requested, show it and exit
+    if args.cost_history:
+        show_cost_history()
+        return
     
     # Print usage info
     print("🔍 General Search Tool")

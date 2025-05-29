@@ -36,3 +36,5 @@ undetected-chromedriver
 # Utilities
 python-slugify
 Pillow
+tiktoken
+anthropic
