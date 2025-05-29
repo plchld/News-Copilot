@@ -91,37 +91,6 @@ def get_fact_check_response_schema() -> Dict[str, Any]:
         "required": ["claims"]
     }
 
-# Bias Agent Schema
-def get_bias_response_schema() -> Dict[str, Any]:
-    """Schema for bias agent responses"""
-    return {
-        "type": "object",
-        "properties": {
-            "political_leaning": {
-                "type": "string",
-                "enum": ["Αριστερά", "Κεντροαριστερά", "Κέντρο", "Κεντροδεξιά", "Δεξιά", "Ουδέτερο"],
-                "description": "Political orientation assessment"
-            },
-            "bias_indicators": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "Specific bias indicators found"
-            },
-            "language_analysis": {
-                "type": "string",
-                "description": "Analysis of language used"
-            },
-            "framing_analysis": {
-                "type": "string", 
-                "description": "How issues are framed"
-            },
-            "balance_assessment": {
-                "type": "string",
-                "description": "Assessment of overall balance"
-            }
-        },
-        "required": ["political_leaning", "bias_indicators", "language_analysis"]
-    }
 
 # Timeline Agent Schema
 def get_timeline_response_schema() -> Dict[str, Any]:
@@ -146,45 +115,6 @@ def get_timeline_response_schema() -> Dict[str, Any]:
         "required": ["events"]
     }
 
-# Expert Agent Schema
-def get_expert_response_schema() -> Dict[str, Any]:
-    """Schema for expert agent responses"""
-    return {
-        "type": "object",
-        "properties": {
-            "topic_domain": {
-                "type": "string",
-                "description": "Main domain of expertise needed"
-            },
-            "expert_perspectives": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "field": {"type": "string", "description": "Field of expertise"},
-                        "perspective": {"type": "string", "description": "Expert viewpoint in Greek"},
-                        "key_points": {
-                            "type": "array",
-                            "items": {"type": "string"},
-                            "description": "Main points from this perspective"
-                        }
-                    },
-                    "required": ["field", "perspective"]
-                }
-            },
-            "consensus_points": {
-                "type": "array",
-                "items": {"type": "string"},
-                "description": "Points of expert consensus"
-            },
-            "debate_points": {
-                "type": "array", 
-                "items": {"type": "string"},
-                "description": "Points of expert debate"
-            }
-        },
-        "required": ["expert_perspectives"]
-    }
 
 # X Pulse Agent Schemas
 def get_sentiment_schema() -> Dict[str, Any]:
@@ -243,12 +173,6 @@ class FactCheckClaim(BaseModel):
 class FactCheckResponse(BaseModel):
     claims: List[FactCheckClaim]
 
-class BiasResponse(BaseModel):
-    political_leaning: str
-    bias_indicators: List[str]
-    language_analysis: str
-    framing_analysis: Optional[str] = None
-    balance_assessment: Optional[str] = None
 
 class TimelineEvent(BaseModel):
     date: str
@@ -259,16 +183,6 @@ class TimelineEvent(BaseModel):
 class TimelineResponse(BaseModel):
     events: List[TimelineEvent]
 
-class ExpertPerspective(BaseModel):
-    field: str
-    perspective: str
-    key_points: List[str] = []
-
-class ExpertResponse(BaseModel):
-    topic_domain: Optional[str] = None
-    expert_perspectives: List[ExpertPerspective]
-    consensus_points: List[str] = []
-    debate_points: List[str] = []
 
 class SentimentResponse(BaseModel):
     overall_sentiment: str

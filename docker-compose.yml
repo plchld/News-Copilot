@@ -38,6 +38,21 @@ services:
       retries: 5
     restart: unless-stopped
 
+  redis:
+    image: redis:7-alpine
+    container_name: news-copilot-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   postgres_data:
     name: news-copilot-postgres-data
@@ -45,3 +60,5 @@ volumes:
     name: news-copilot-mongodb-data
   mongodb_config:
     name: news-copilot-mongodb-config
+  redis_data:
+    name: news-copilot-redis-data

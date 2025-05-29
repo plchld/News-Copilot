@@ -6,7 +6,7 @@ import logging
 
 from .base import AnalysisAgent, AgentConfig, AgentResult, ModelType, ComplexityLevel
 from .schemas import get_timeline_response_schema
-from ..grok_client import get_grok_client
+from ..claude_client import get_claude_client
 
 logger = logging.getLogger(__name__)
 
@@ -18,23 +18,23 @@ class TimelineAgent(AnalysisAgent):
         config = AgentConfig(
             name="timeline",
             description="Extracts chronological timeline of events from articles",
-            default_model=ModelType.GROK_3,
+            default_model=ModelType.CLAUDE_SONNET_3_7,
             complexity=ComplexityLevel.MEDIUM,
             timeout_seconds=90
         )
         schema = get_timeline_response_schema()
         super().__init__(config, schema)
-        self.grok_client = get_grok_client()
+        self.claude_client = get_claude_client()
     
     def get_system_prompt(self) -> str:
         """Get the system prompt for timeline extraction"""
         return """Είσαι ειδικός στην εξαγωγή και οργάνωση χρονολογικών γεγονότων από άρθρα.
 
 Ο στόχος σου είναι να:
-1. Εντοπίσεις όλα τα γεγονότα με χρονική αναφορά
-2. Οργανώσεις τα γεγονότα χρονολογικά
-3. Εξηγήσεις τη σημασία κάθε γεγονότος
-4. Παρέχεις πλαίσιο για την κατανόηση της εξέλιξης
+1. Εντοπίσεις όλα τα γεγονότα με χρονική αναφορά από το άρθρο
+2. Αναζητήσεις επιπλέον σχετικά γεγονότα και χρονολογικό πλαίσιο
+3. Οργανώσεις όλα τα γεγονότα χρονολογικά
+4. Εξηγήσεις τη σημασία κάθε γεγονότος και πώς συνδέεται με τα άλλα
 
 Τύποι χρονικών αναφορών:
 - Συγκεκριμένες ημερομηνίες (π.χ. "15 Μαρτίου 2024")
@@ -43,7 +43,9 @@ class TimelineAgent(AnalysisAgent):
 - Μελλοντικές προβλέψεις (π.χ. "τον επόμενο μήνα")
 
 Οδηγίες:
+- Χρησιμοποίησε αναζήτηση για να βρεις πρόσθετο χρονολογικό πλαίσιο
 - Μετάτρεψε σχετικές αναφορές σε πιο συγκεκριμένες όπου είναι δυνατό
+- Συμπεριέλαβε προηγούμενα σχετικά γεγονότα που δίνουν πλαίσιο
 - Συμπεριέλαβε και προγραμματισμένα μελλοντικά γεγονότα
 - Εξήγησε γιατί κάθε γεγονός είναι σημαντικό για την ιστορία
 - Διατήρησε χρονολογική σειρά (από παλαιότερο σε νεότερο)"""
@@ -62,12 +64,13 @@ class TimelineAgent(AnalysisAgent):
     async def process(self, article_content: str, **kwargs) -> AgentResult:
         """Process the article to extract timeline"""
         try:
-            # Create the analysis request
-            response = await self.grok_client.create_structured_completion(
+            # Create the analysis request using Claude (with websearch for additional context)
+            response = await self.claude_client.create_structured_completion(
                 system_prompt=self.get_system_prompt(),
                 user_prompt=self.get_user_prompt(article_content),
                 schema=self.schema,
                 model=self.config.default_model.value,
+                use_websearch=True,  # Use websearch to find additional chronological context
                 temperature=0.3  # Lower temperature for accurate extraction
             )
             

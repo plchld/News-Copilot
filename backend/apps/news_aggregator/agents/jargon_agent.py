@@ -6,7 +6,7 @@ import logging
 
 from .base import AnalysisAgent, AgentConfig, AgentResult, ModelType, ComplexityLevel
 from .schemas import get_jargon_response_schema
-from ..grok_client import get_grok_client
+from ..claude_client import get_claude_client
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +18,13 @@ class JargonAgent(AnalysisAgent):
         config = AgentConfig(
             name="jargon",
             description="Identifies and explains technical terms and jargon",
-            default_model=ModelType.GROK_3_MINI,
+            default_model=ModelType.CLAUDE_HAIKU_3_5,
             complexity=ComplexityLevel.SIMPLE,
             timeout_seconds=60
         )
         schema = get_jargon_response_schema()
         super().__init__(config, schema)
-        self.grok_client = get_grok_client()
+        self.claude_client = get_claude_client()
     
     def get_system_prompt(self) -> str:
         """Get the system prompt for jargon analysis"""
@@ -52,12 +52,13 @@ class JargonAgent(AnalysisAgent):
     async def process(self, article_content: str, **kwargs) -> AgentResult:
         """Process the article to identify and explain jargon"""
         try:
-            # Create the analysis request
-            response = await self.grok_client.create_structured_completion(
+            # Create the analysis request using Claude (no websearch needed for jargon)
+            response = await self.claude_client.create_structured_completion(
                 system_prompt=self.get_system_prompt(),
                 user_prompt=self.get_user_prompt(article_content),
                 schema=self.schema,
                 model=self.config.default_model.value,
+                use_websearch=False,  # No websearch needed for jargon explanation
                 temperature=0.3  # Lower temperature for more consistent results
             )
             

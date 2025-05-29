@@ -16,10 +16,18 @@ logger = logging.getLogger(__name__)
 
 
 class ModelType(Enum):
-    """Available Grok models"""
+    """Available AI models"""
+    # Grok Models
     GROK_3_MINI = "grok-3-mini"
     GROK_3 = "grok-3-latest"
     GROK_3_FAST = "grok-3-fast"
+    
+    # Claude Models  
+    CLAUDE_OPUS_4 = "claude-opus-4-20250514"
+    CLAUDE_SONNET_4 = "claude-sonnet-4-20250514"
+    CLAUDE_SONNET_3_7 = "claude-3-7-sonnet-20250219"
+    CLAUDE_SONNET_3_5 = "claude-3-5-sonnet-latest"
+    CLAUDE_HAIKU_3_5 = "claude-3-5-haiku-latest"
 
 
 class ComplexityLevel(Enum):

@@ -17,4 +17,5 @@ urlpatterns = [
     path('process/', views.process_article, name='process_article'),
     path('analyze/', views.analyze_article, name='analyze_article'),
     path('health/', views.health_check, name='health_check'),
+    path('testing-info/', views.testing_info, name='testing_info'),
 ]

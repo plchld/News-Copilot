@@ -6,7 +6,7 @@ import logging
 
 from .base import AnalysisAgent, AgentConfig, AgentResult, ModelType, ComplexityLevel
 from .schemas import get_fact_check_response_schema
-from ..grok_client import get_grok_client
+from ..claude_client import get_claude_client
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +18,13 @@ class FactCheckAgent(AnalysisAgent):
         config = AgentConfig(
             name="fact_check",
             description="Verifies claims and checks facts in articles",
-            default_model=ModelType.GROK_3,
+            default_model=ModelType.CLAUDE_SONNET_4,
             complexity=ComplexityLevel.HIGH,
             timeout_seconds=120
         )
         schema = get_fact_check_response_schema()
         super().__init__(config, schema)
-        self.grok_client = get_grok_client()
+        self.claude_client = get_claude_client()
     
     def get_system_prompt(self) -> str:
         """Get the system prompt for fact-checking analysis"""
@@ -47,7 +47,7 @@ class FactCheckAgent(AnalysisAgent):
 Οδηγίες:
 - Εστίασε σε ουσιαστικούς, επαληθεύσιμους ισχυρισμούς
 - Αγνόησε απόψεις και υποκειμενικές κρίσεις
-- Χρησιμοποίησε live search για να βρεις επιπλέον πληροφορίες
+- Χρησιμοποίησε αναζήτηση για να βρεις επιπλέον πληροφορίες και επαληθεύσεις
 - Να είσαι αντικειμενικός και ισορροπημένος"""
     
     def get_user_prompt(self, article_content: str) -> str:
@@ -57,21 +57,21 @@ class FactCheckAgent(AnalysisAgent):
 {article_content[:4000]}...
 
 Εντόπισε τους επαληθεύσιμους ισχυρισμούς και αξιολόγησε την τεκμηρίωσή τους.
-Χρησιμοποίησε live search για να βρεις επιπλέον πληροφορίες όπου χρειάζεται.
+Χρησιμοποίησε αναζήτηση για να βρεις επιπλέον πληροφορίες και επαληθεύσεις όπου χρειάζεται.
 
 Απάντησε σε JSON με τη δομή που σου δόθηκε."""
     
     async def process(self, article_content: str, **kwargs) -> AgentResult:
         """Process the article to fact-check claims"""
         try:
-            # Create the analysis request with search enabled
-            response = await self.grok_client.create_structured_completion(
+            # Create the analysis request using Claude with websearch for fact verification
+            response = await self.claude_client.create_structured_completion(
                 system_prompt=self.get_system_prompt(),
                 user_prompt=self.get_user_prompt(article_content),
                 schema=self.schema,
                 model=self.config.default_model.value,
-                temperature=0.3,  # Lower temperature for factual accuracy
-                search_enabled=True  # Enable live search for fact-checking
+                use_websearch=True,  # Essential for fact-checking and verification
+                temperature=0.3  # Lower temperature for factual accuracy
             )
             
             # Validate the response

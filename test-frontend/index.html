@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Copilot - Agent Testing Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #2563eb;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .main {
+            padding: 30px;
+        }
+        
+        .auth-section {
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 1px solid;
+        }
+        
+        .auth-section.auth-required {
+            background: #fef3c7;
+            border-color: #fbbf24;
+        }
+        
+        .auth-section.auth-optional {
+            background: #d1fae5;
+            border-color: #6ee7b7;
+        }
+        
+        .auth-section h3 {
+            margin-bottom: 10px;
+        }
+        
+        .auth-section.auth-required h3 {
+            color: #92400e;
+        }
+        
+        .auth-section.auth-optional h3 {
+            color: #047857;
+        }
+        
+        .auth-section p {
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .auth-section.auth-required p {
+            color: #92400e;
+        }
+        
+        .auth-section.auth-optional p {
+            color: #047857;
+        }
+        
+        .auth-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .auth-status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .auth-status.authenticated {
+            background: #d1fae5;
+            color: #047857;
+        }
+        
+        .auth-status.unauthenticated {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .auth-status.not-required {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+        
+        .input-section {
+            margin-bottom: 30px;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        input[type="text"], input[type="url"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        
+        input[type="text"]:focus, input[type="url"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #2563eb;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #2563eb;
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: #1d4ed8;
+        }
+        
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: #4b5563;
+        }
+        
+        .btn-warning {
+            background: #f59e0b;
+            color: white;
+        }
+        
+        .btn-warning:hover:not(:disabled) {
+            background: #d97706;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        
+        .status.loading {
+            background: #dbeafe;
+            color: #1d4ed8;
+            border: 1px solid #93c5fd;
+        }
+        
+        .status.success {
+            background: #d1fae5;
+            color: #047857;
+            border: 1px solid #6ee7b7;
+        }
+        
+        .status.error {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+        }
+        
+        .results {
+            margin-top: 30px;
+        }
+        
+        .article-info {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .article-info h3 {
+            color: #374151;
+            margin-bottom: 10px;
+        }
+        
+        .article-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .meta-item {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #e5e7eb;
+        }
+        
+        .meta-item strong {
+            color: #374151;
+        }
+        
+        .analyses {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .analysis-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+        }
+        
+        .analysis-header {
+            background: #f9fafb;
+            padding: 15px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .analysis-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #374151;
+            margin: 0;
+        }
+        
+        .analysis-content {
+            padding: 20px;
+        }
+        
+        .analysis-data {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #2563eb;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .progress-log {
+            background: #1f2937;
+            color: #d1d5db;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 15px 0;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+        }
+        
+        .log-timestamp {
+            color: #6b7280;
+        }
+        
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+            
+            .auth-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 News Copilot Agent Testing</h1>
+            <p>Test AI agents with AMNA.gr articles</p>
+        </div>
+        
+        <div class="main">
+            <!-- Authentication Section -->
+            <div id="authSection" class="auth-section">
+                <h3 id="authTitle">🔍 Checking Authentication Status...</h3>
+                <p id="authMessage">Connecting to backend to check configuration...</p>
+                <div class="auth-controls">
+                    <div id="authStatus" class="auth-status unauthenticated">Checking...</div>
+                    <button id="testDirectBtn" class="btn-secondary">📋 Direct Test Instructions</button>
+                    <button id="checkAgainBtn" class="btn-warning">🔄 Check Again</button>
+                </div>
+            </div>
+            
+            <div class="input-section">
+                <div class="input-group">
+                    <label for="apiUrl">Backend API URL:</label>
+                    <input type="text" id="apiUrl" value="http://localhost:8000/api" placeholder="http://localhost:8000/api">
+                </div>
+                
+                <div class="input-group">
+                    <label for="articleUrl">AMNA Article URL:</label>
+                    <input type="url" id="articleUrl" placeholder="https://www.amna.gr/home/article/..." required>
+                </div>
+                
+                <div class="button-group">
+                    <button id="processBtn" class="btn-primary">🚀 Process & Analyze Article</button>
+                    <button id="clearBtn" class="btn-secondary">🗑️ Clear Results</button>
+                </div>
+            </div>
+            
+            <div id="status" class="status hidden"></div>
+            
+            <div id="progressLog" class="progress-log hidden"></div>
+            
+            <div id="results" class="results hidden">
+                <div id="articleInfo" class="article-info"></div>
+                <div id="analyses" class="analyses"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const config = {
+            pollInterval: 2000, // Poll every 2 seconds
+            maxPollAttempts: 150 // Max 5 minutes of polling
+        };
+        
+        // DOM elements
+        const elements = {
+            apiUrl: document.getElementById('apiUrl'),
+            articleUrl: document.getElementById('articleUrl'),
+            processBtn: document.getElementById('processBtn'),
+            clearBtn: document.getElementById('clearBtn'),
+            testDirectBtn: document.getElementById('testDirectBtn'),
+            checkAgainBtn: document.getElementById('checkAgainBtn'),
+            authSection: document.getElementById('authSection'),
+            authTitle: document.getElementById('authTitle'),
+            authMessage: document.getElementById('authMessage'),
+            authStatus: document.getElementById('authStatus'),
+            status: document.getElementById('status'),
+            progressLog: document.getElementById('progressLog'),
+            results: document.getElementById('results'),
+            articleInfo: document.getElementById('articleInfo'),
+            analyses: document.getElementById('analyses')
+        };
+        
+        // State
+        let currentTaskId = null;
+        let currentArticleId = null;
+        let pollAttempts = 0;
+        let authRequired = true;
+        
+        // Event listeners
+        elements.processBtn.addEventListener('click', processArticle);
+        elements.clearBtn.addEventListener('click', clearResults);
+        elements.testDirectBtn.addEventListener('click', showDirectTestInstructions);
+        elements.checkAgainBtn.addEventListener('click', checkAuthStatus);
+        
+        // Utility functions
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
+            
+            elements.progressLog.appendChild(logEntry);
+            elements.progressLog.scrollTop = elements.progressLog.scrollHeight;
+            elements.progressLog.classList.remove('hidden');
+            
+            console.log(`[${type.toUpperCase()}] ${message}`);
+        }
+        
+        function showStatus(message, type = 'loading') {
+            elements.status.textContent = message;
+            elements.status.className = `status ${type}`;
+            elements.status.classList.remove('hidden');
+            
+            if (type === 'loading') {
+                elements.status.innerHTML = `<span class="loading-spinner"></span>${message}`;
+            }
+        }
+        
+        function hideStatus() {
+            elements.status.classList.add('hidden');
+        }
+        
+        function updateAuthUI(authRequiredFlag, backendReachable = true) {
+            authRequired = authRequiredFlag;
+            
+            if (!backendReachable) {
+                elements.authSection.className = 'auth-section auth-required';
+                elements.authTitle.textContent = '❌ Backend Connection Failed';
+                elements.authMessage.textContent = 'Cannot connect to the Django backend. Make sure it\'s running on the specified URL.';
+                elements.authStatus.textContent = 'Connection Failed';
+                elements.authStatus.className = 'auth-status unauthenticated';
+                return;
+            }
+            
+            if (authRequired) {
+                elements.authSection.className = 'auth-section auth-required';
+                elements.authTitle.textContent = '🔐 Authentication Required';
+                elements.authMessage.textContent = 'Backend requires authentication (AUTH_REQUIRED=true). Use the direct management command for testing, or set AUTH_REQUIRED=false in your environment.';
+                elements.authStatus.textContent = 'Auth Required ⚠️';
+                elements.authStatus.className = 'auth-status unauthenticated';
+            } else {
+                elements.authSection.className = 'auth-section auth-optional';
+                elements.authTitle.textContent = '🎯 Testing Mode Active';
+                elements.authMessage.textContent = 'Backend authentication is disabled (AUTH_REQUIRED=false). You can use the web interface directly!';
+                elements.authStatus.textContent = 'Auth Disabled ✅';
+                elements.authStatus.className = 'auth-status not-required';
+            }
+        }
+        
+        function clearResults() {
+            elements.results.classList.add('hidden');
+            elements.progressLog.classList.add('hidden');
+            elements.progressLog.innerHTML = '';
+            hideStatus();
+            currentTaskId = null;
+            currentArticleId = null;
+            pollAttempts = 0;
+            elements.processBtn.disabled = false;
+        }
+        
+        // Authentication checking
+        async function checkAuthStatus() {
+            try {
+                elements.authStatus.textContent = 'Checking...';
+                elements.authStatus.className = 'auth-status unauthenticated';
+                
+                const baseUrl = elements.apiUrl.value.replace(/\/$/, '');
+                const response = await fetch(`${baseUrl}/v1/health/`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                updateAuthUI(data.auth_required, true);
+                
+                log(`🔍 Backend status: auth_required=${data.auth_required}, debug=${data.debug}`, 'info');
+                
+                // If auth is not required, also check testing-info endpoint
+                if (!data.auth_required) {
+                    try {
+                        const testingResponse = await fetch(`${baseUrl}/v1/testing-info/`);
+                        if (testingResponse.ok) {
+                            const testingData = await testingResponse.json();
+                            log(`✅ Testing mode confirmed: ${testingData.message}`, 'success');
+                        }
+                    } catch (e) {
+                        // Testing info endpoint might not be available
+                    }
+                }
+                
+            } catch (error) {
+                log(`❌ Failed to check backend status: ${error.message}`, 'error');
+                updateAuthUI(true, false);
+            }
+        }
+        
+        function showDirectTestInstructions() {
+            const articleUrl = elements.articleUrl.value.trim() || 'https://www.amna.gr/home/article/YOUR_ARTICLE_URL';
+            
+            const instructions = `
+🚀 Direct Testing Instructions (Recommended):
+
+Instead of using this web interface, you can test the agents directly using the Django management command:
+
+1. Open terminal and navigate to the backend directory:
+   cd backend
+
+2. Test article processing with enhanced extraction:
+   python manage.py process_article "${articleUrl}" --enhanced
+
+3. Test full processing with AI analysis:
+   python manage.py process_article "${articleUrl}" --enhanced --analyze
+
+4. This bypasses all authentication and tests all agents directly!
+
+💡 To enable web interface testing, set AUTH_REQUIRED=false in your environment:
+   export AUTH_REQUIRED=false
+   python manage.py runserver 8000
+
+The management command will show detailed logs and results in the terminal.
+            `;
+            
+            log(instructions, 'info');
+            showStatus('See progress log for direct testing instructions', 'success');
+        }
+        
+        // API functions
+        async function apiCall(endpoint, options = {}) {
+            const baseUrl = elements.apiUrl.value.replace(/\/$/, '');
+            const url = `${baseUrl}/v1${endpoint}`;
+            
+            const defaultOptions = {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                }
+            };
+            
+            const response = await fetch(url, { ...defaultOptions, ...options });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`API Error ${response.status}: ${errorText}`);
+            }
+            
+            return await response.json();
+        }
+        
+        async function processArticle() {
+            const articleUrl = elements.articleUrl.value.trim();
+            
+            if (!articleUrl) {
+                alert('Please enter an article URL');
+                return;
+            }
+            
+            if (!articleUrl.includes('amna.gr')) {
+                const proceed = confirm('This URL is not from AMNA.gr. Continue anyway?');
+                if (!proceed) return;
+            }
+            
+            // Check if authentication is required
+            if (authRequired) {
+                showDirectTestInstructions();
+                const proceed = confirm(
+                    'Authentication is required. This API call may fail.\n\n' +
+                    'Recommended: Use the direct management command shown in the log.\n\n' +
+                    'Continue with API call anyway?'
+                );
+                if (!proceed) return;
+            }
+            
+            elements.processBtn.disabled = true;
+            clearResults();
+            
+            try {
+                log('🚀 Starting article processing via API...', 'info');
+                if (authRequired) {
+                    log('⚠️  Note: Authentication is required - this may fail', 'warning');
+                } else {
+                    log('✅ Authentication disabled - proceeding with API call', 'success');
+                }
+                showStatus('Processing article...', 'loading');
+                
+                // Step 1: Process the article with enhanced extraction
+                log('📄 Extracting article content with enhanced Selenium extractor...', 'info');
+                const processResponse = await apiCall('/process/', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        url: articleUrl,
+                        force_refresh: false
+                    })
+                });
+                
+                if (processResponse.article_id) {
+                    currentArticleId = processResponse.article_id;
+                    log(`✅ Article extracted successfully (ID: ${currentArticleId})`, 'success');
+                    
+                    // If article already existed and was processed, get its data
+                    if (processResponse.is_processed) {
+                        log('📖 Article was already processed, fetching existing data...', 'info');
+                        await fetchArticleData();
+                    } else {
+                        log('⏳ Waiting for article processing to complete...', 'info');
+                        await pollTaskStatus(processResponse.task_id, 'extraction');
+                    }
+                } else if (processResponse.task_id) {
+                    currentTaskId = processResponse.task_id;
+                    log(`⏳ Article processing started (Task ID: ${currentTaskId})`, 'info');
+                    await pollTaskStatus(currentTaskId, 'extraction');
+                } else {
+                    throw new Error('Unexpected response format from process API');
+                }
+                
+                // Step 2: Run AI analysis
+                if (currentArticleId) {
+                    log('🤖 Starting AI agent analysis...', 'info');
+                    showStatus('Running AI analysis...', 'loading');
+                    
+                    const analyzeResponse = await apiCall('/analyze/', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            article_id: currentArticleId,
+                            types: ['all']
+                        })
+                    });
+                    
+                    if (analyzeResponse.task_id) {
+                        log(`🔍 Analysis started (Task ID: ${analyzeResponse.task_id})`, 'info');
+                        await pollTaskStatus(analyzeResponse.task_id, 'analysis');
+                    }
+                }
+                
+            } catch (error) {
+                log(`❌ API Error: ${error.message}`, 'error');
+                if (authRequired) {
+                    log('💡 Recommendation: Use the direct management command instead (see instructions above)', 'info');
+                    showStatus(`API Error: ${error.message}. Use direct command instead.`, 'error');
+                } else {
+                    showStatus(`Error: ${error.message}`, 'error');
+                }
+                elements.processBtn.disabled = false;
+            }
+        }
+        
+        async function pollTaskStatus(taskId, taskType) {
+            pollAttempts = 0;
+            
+            while (pollAttempts < config.maxPollAttempts) {
+                try {
+                    await new Promise(resolve => setTimeout(resolve, config.pollInterval));
+                    pollAttempts++;
+                    
+                    log(`🔄 Checking ${taskType} status... (${pollAttempts}/${config.maxPollAttempts})`, 'info');
+                    
+                    // For now, we'll simulate task completion and fetch the article data
+                    if (pollAttempts >= 5 && taskType === 'extraction') {
+                        log('✅ Extraction completed (simulated)', 'success');
+                        await fetchArticleData();
+                        break;
+                    } else if (pollAttempts >= 10 && taskType === 'analysis') {
+                        log('✅ Analysis completed (simulated)', 'success');
+                        await fetchAnalysisResults();
+                        break;
+                    }
+                    
+                } catch (error) {
+                    log(`❌ Polling error: ${error.message}`, 'error');
+                    break;
+                }
+            }
+            
+            if (pollAttempts >= config.maxPollAttempts) {
+                throw new Error(`${taskType} timed out after ${config.maxPollAttempts} attempts`);
+            }
+        }
+        
+        async function fetchArticleData() {
+            try {
+                log('📊 Fetching article data...', 'info');
+                const article = await apiCall(`/articles/${currentArticleId}/`);
+                displayArticleInfo(article);
+                showStatus('Article processed successfully!', 'success');
+            } catch (error) {
+                log(`❌ Failed to fetch article data: ${error.message}`, 'error');
+                // Continue anyway, we might still be able to run analysis
+            }
+        }
+        
+        async function fetchAnalysisResults() {
+            try {
+                log('🎯 Fetching analysis results...', 'info');
+                const analyses = await apiCall(`/articles/${currentArticleId}/analyses`);
+                displayAnalysisResults(analyses);
+                showStatus('Analysis completed successfully!', 'success');
+                elements.processBtn.disabled = false;
+            } catch (error) {
+                log(`❌ Failed to fetch analysis results: ${error.message}`, 'error');
+                showStatus(`Error fetching results: ${error.message}`, 'error');
+                elements.processBtn.disabled = false;
+            }
+        }
+        
+        function displayArticleInfo(article) {
+            const info = `
+                <h3>📰 Article Information</h3>
+                <div class="article-meta">
+                    <div class="meta-item">
+                        <strong>Title:</strong><br>
+                        ${article.title || 'N/A'}
+                    </div>
+                    <div class="meta-item">
+                        <strong>Author:</strong><br>
+                        ${article.author || 'N/A'}
+                    </div>
+                    <div class="meta-item">
+                        <strong>Source:</strong><br>
+                        ${article.source_name || 'N/A'}
+                    </div>
+                    <div class="meta-item">
+                        <strong>Published:</strong><br>
+                        ${article.published_at ? new Date(article.published_at).toLocaleString() : 'N/A'}
+                    </div>
+                    <div class="meta-item">
+                        <strong>Word Count:</strong><br>
+                        ${article.word_count || 0} words
+                    </div>
+                    <div class="meta-item">
+                        <strong>Reading Time:</strong><br>
+                        ${article.reading_time || 0} minutes
+                    </div>
+                    <div class="meta-item">
+                        <strong>Processed:</strong><br>
+                        ${article.is_processed ? '✅ Yes' : '❌ No'}
+                    </div>
+                    <div class="meta-item">
+                        <strong>Analyzed:</strong><br>
+                        ${article.is_enriched ? '✅ Yes' : '❌ No'}
+                    </div>
+                </div>
+            `;
+            
+            elements.articleInfo.innerHTML = info;
+            elements.results.classList.remove('hidden');
+        }
+        
+        function displayAnalysisResults(analyses) {
+            const agentNames = {
+                'jargon': '📚 Jargon Analysis',
+                'viewpoints': '🔄 Viewpoints Analysis', 
+                'fact_check': '✅ Fact Check Analysis',
+                'timeline': '📅 Timeline Analysis'
+            };
+            
+            let analysesHtml = '<h3>🤖 AI Agent Results</h3>';
+            
+            if (!analyses || analyses.length === 0) {
+                analysesHtml += '<p>No analysis results found. The analysis may still be processing.</p>';
+            } else {
+                analyses.forEach(analysis => {
+                    const agentName = agentNames[analysis.analysis_type] || analysis.analysis_type;
+                    analysesHtml += `
+                        <div class="analysis-card">
+                            <div class="analysis-header">
+                                <h4 class="analysis-title">${agentName}</h4>
+                            </div>
+                            <div class="analysis-content">
+                                <div class="analysis-data">${JSON.stringify(analysis.result, null, 2)}</div>
+                                <p><strong>Model:</strong> ${analysis.model_used}</p>
+                                <p><strong>Processing Time:</strong> ${analysis.processing_time}s</p>
+                                <p><strong>Created:</strong> ${new Date(analysis.created_at).toLocaleString()}</p>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            elements.analyses.innerHTML = analysesHtml;
+            elements.results.classList.remove('hidden');
+        }
+        
+        // Initialize and check auth status
+        window.addEventListener('load', async () => {
+            elements.articleUrl.value = 'https://www.amna.gr/home/article/';
+            log('🎯 Agent testing interface ready!', 'info');
+            
+            // Check authentication status on load
+            await checkAuthStatus();
+        });
+    </script>
+</body>
+</html> 

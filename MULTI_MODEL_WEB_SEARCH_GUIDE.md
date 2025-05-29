@@ -9,11 +9,10 @@ This guide documents how different LLM providers implement web search functional
 ### 1. Anthropic Claude
 
 #### Available Models with Web Search
-- **Claude Opus 4** (`claude-opus-4-20250514`)
-- **Claude Sonnet 4** (`claude-sonnet-4-20250514`) 
-- **Claude Sonnet 3.7** (`claude-3-7-sonnet-20250219`)
-- **Claude Sonnet 3.5** (`claude-3-5-sonnet-latest`)
-- **Claude Haiku 3.5** (`claude-3-5-haiku-latest`)
+- **Claude Opus 4** (`claude-opus-4-20250514`) -> Only for the most depanding tasks that require a lot of reasoning or intelligent agent coordination
+- **Claude Sonnet 4** (`claude-sonnet-4-20250514`) -> main prod model
+- **Claude Sonnet 3.7** (`claude-3-7-sonnet-20250219`) -> main testing model
+- **Claude Haiku 3.5** (`claude-3-5-haiku-latest`) -> small model for things that are easy.
 
 #### Web Search Implementation
 
@@ -46,7 +45,7 @@ response = await client.messages.create(
 **Streaming**:
 ```python
 stream = await client.messages.create(
-    model="claude-3-5-sonnet-latest",
+    model="claude-3-7-sonnet-latest",
     max_tokens=1024,
     messages=[{"role": "user", "content": "Search for AI developments"}],
     tools=[{"type": "web_search_20250305", "name": "web_search"}],

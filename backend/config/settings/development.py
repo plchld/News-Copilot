@@ -39,5 +39,5 @@ STATICFILES_DIRS = [
 MEDIA_ROOT = BASE_DIR / "media"
 
 # Logging
-LOGGING['loggers']['django']['level'] = 'DEBUG'
-LOGGING['loggers']['apps']['level'] = 'DEBUG'
+LOGGING['loggers']['django']['level'] = 'INFO'
+LOGGING['loggers']['apps']['level'] = 'INFO'

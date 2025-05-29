@@ -6,7 +6,7 @@ import logging
 
 from .base import AnalysisAgent, AgentConfig, AgentResult, ModelType, ComplexityLevel
 from .schemas import get_viewpoints_response_schema
-from ..grok_client import get_grok_client
+from ..claude_client import get_claude_client
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +18,13 @@ class ViewpointsAgent(AnalysisAgent):
         config = AgentConfig(
             name="viewpoints",
             description="Discovers alternative perspectives and viewpoints on the topic",
-            default_model=ModelType.GROK_3,
+            default_model=ModelType.CLAUDE_SONNET_4,
             complexity=ComplexityLevel.HIGH,
             timeout_seconds=120
         )
         schema = get_viewpoints_response_schema()
         super().__init__(config, schema)
-        self.grok_client = get_grok_client()
+        self.claude_client = get_claude_client()
     
     def get_system_prompt(self) -> str:
         return """Είσαι ειδικός στην ανάλυση διαφορετικών οπτικών γωνιών και απόψεων.
@@ -34,7 +34,8 @@ class ViewpointsAgent(AnalysisAgent):
 2. Αναζητήσεις και παρουσιάσεις εναλλακτικές οπτικές γωνίες
 3. Συνθέσεις μια ολοκληρωμένη εικόνα των διαφορετικών απόψεων
 
-Χρησιμοποίησε την αναζήτηση για να βρεις διαφορετικές προσεγγίσεις στο θέμα."""
+Χρησιμοποίησε την αναζήτηση για να βρεις διαφορετικές προσεγγίσεις στο θέμα.
+Αναζήτησε ενεργά για εναλλακτικές απόψεις και διαφορετικές οπτικές γωνίες."""
     
     def get_user_prompt(self, article_content: str) -> str:
         return f"""Ανάλυσε το παρακάτω άρθρο και βρες εναλλακτικές οπτικές γωνίες:
@@ -45,20 +46,14 @@ class ViewpointsAgent(AnalysisAgent):
     
     async def process(self, article_content: str, **kwargs) -> AgentResult:
         try:
-            # Build search parameters for finding alternative viewpoints
-            search_params = self.grok_client.build_search_params(
-                query=f"διαφορετικές απόψεις {article_content[:200]}",
-                language="el",
-                max_results=10
-            )
-            
-            response = await self.grok_client.create_structured_completion(
+            # Create the analysis request using Claude with websearch for alternative viewpoints
+            response = await self.claude_client.create_structured_completion(
                 system_prompt=self.get_system_prompt(),
                 user_prompt=self.get_user_prompt(article_content),
                 schema=self.schema,
                 model=self.config.default_model.value,
-                search_params=search_params,
-                temperature=0.7
+                use_websearch=True,  # Essential for finding alternative perspectives
+                temperature=0.7  # Higher temperature for diverse viewpoints
             )
             
             return AgentResult(

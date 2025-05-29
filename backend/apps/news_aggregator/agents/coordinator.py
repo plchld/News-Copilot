@@ -11,9 +11,7 @@ from .base import AgentResult, BaseAgent
 from .jargon_agent import JargonAgent
 from .viewpoints_agent import ViewpointsAgent
 from .fact_check_agent import FactCheckAgent
-from .bias_agent import BiasAgent
 from .timeline_agent import TimelineAgent
-from .expert_agent import ExpertAgent
 
 logger = logging.getLogger(__name__)
 
@@ -32,9 +30,7 @@ class AgentCoordinator:
             'jargon': JargonAgent(),
             'viewpoints': ViewpointsAgent(),
             'fact_check': FactCheckAgent(),
-            'bias': BiasAgent(),
             'timeline': TimelineAgent(),
-            'expert': ExpertAgent(),
         }
     
     async def analyze_article(
