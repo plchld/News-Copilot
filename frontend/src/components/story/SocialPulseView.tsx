@@ -3,18 +3,20 @@
 import { motion } from 'framer-motion';
 import { TrendingUp, HelpCircle, AlertCircle } from 'lucide-react';
 
-interface Misconception {
-  claim: string;
-  correction: string;
-}
+// Misconception interface now inline in SocialData
 
 interface SocialData {
-  trendingLevel: 'high' | 'medium' | 'low';
-  trendingDescription: string;
-  topQuestion?: string;
-  questionAnswer?: string;
-  misconception?: Misconception;
-  sentiment?: Record<string, number>;
+  topQuestion: string;
+  questionAnswer: string;
+  misconception: {
+    claim: string;
+    correction: string;
+  };
+  sentiment: {
+    positive: number;
+    neutral: number;
+    negative: number;
+  };
 }
 
 interface SocialPulseViewProps {
@@ -22,50 +24,54 @@ interface SocialPulseViewProps {
 }
 
 export default function SocialPulseView({ socialData }: SocialPulseViewProps) {
-  const getTrendingColor = (level: string) => {
-    switch (level) {
-      case 'high': return 'text-orange-400';
-      case 'medium': return 'text-yellow-400';
-      default: return 'text-gray-400';
-    }
+  const getTotalSentiment = () => {
+    return socialData.sentiment.positive + socialData.sentiment.neutral + socialData.sentiment.negative;
   };
 
-  const getTrendingBg = (level: string) => {
-    switch (level) {
-      case 'high': return 'bg-orange-500/20';
-      case 'medium': return 'bg-yellow-500/20';
-      default: return 'bg-gray-500/20';
-    }
-  };
-
-  const getTrendingTitle = (level: string) => {
-    switch (level) {
-      case 'high': return 'Highly Trending';
-      case 'medium': return 'Moderately Trending';
-      default: return 'Limited Discussion';
-    }
+  const getPercentage = (value: number) => {
+    return Math.round((value / getTotalSentiment()) * 100);
   };
 
   return (
     <div className="space-y-8">
-      {/* Trending level */}
+      {/* Sentiment Distribution */}
       <motion.div 
-        className="flex items-center gap-4 p-4 glass-subtle-premium rounded-lg"
+        className="p-4 glass-subtle-premium rounded-lg"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.1 }}
       >
-        <div className={`
-          w-12 h-12 rounded-lg flex items-center justify-center
-          ${getTrendingBg(socialData.trendingLevel)}
-        `}>
-          <TrendingUp className={`w-6 h-6 ${getTrendingColor(socialData.trendingLevel)}`} />
+        <div className="flex items-center gap-3 mb-4">
+          <TrendingUp className="w-5 h-5 text-white/60" />
+          <h4 className="text-white font-medium">Public Sentiment</h4>
         </div>
-        <div>
-          <h4 className="text-white font-medium">
-            {getTrendingTitle(socialData.trendingLevel)}
-          </h4>
-          <p className="text-white/60 text-sm">{socialData.trendingDescription}</p>
+        
+        <div className="space-y-3">
+          {Object.entries(socialData.sentiment).map(([type, value], index) => {
+            const percentage = getPercentage(value);
+            return (
+              <div key={type} className="flex items-center gap-3">
+                <span className="text-white/60 text-sm w-20 capitalize">{type}</span>
+                <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${percentage}%` }}
+                    transition={{ 
+                      duration: 0.8, 
+                      ease: 'easeOut',
+                      delay: 0.5 + index * 0.1, 
+                    }}
+                    className={`h-full rounded-full ${
+                      type === 'positive' ? 'bg-green-500/60' :
+                      type === 'negative' ? 'bg-red-500/60' :
+                      'bg-gray-500/60'
+                    }`}
+                  />
+                </div>
+                <span className="text-white/40 text-sm w-10 text-right">{percentage}%</span>
+              </div>
+            );
+          })}
         </div>
       </motion.div>
 
@@ -127,8 +133,8 @@ export default function SocialPulseView({ socialData }: SocialPulseViewProps) {
                     animate={{ width: `${percentage}%` }}
                     transition={{ 
                       duration: 0.8, 
-                      ease: "easeOut",
-                      delay: 0.5 + index * 0.1 
+                      ease: 'easeOut',
+                      delay: 0.5 + index * 0.1, 
                     }}
                     className="h-full bg-gradient-to-r from-white/20 to-white/40 rounded-full"
                   />

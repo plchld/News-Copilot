@@ -2,24 +2,9 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, BarChart3, MessageCircle, TrendingUp } from 'lucide-react';
+import { Clock, BarChart3, TrendingUp } from 'lucide-react';
 import ExpandedStoryView from './ExpandedStoryView';
-
-interface Story {
-  id: string;
-  category: string;
-  headline: string;
-  summary: string;
-  readTime: number;
-  lastUpdated: string;
-  fullSummary: string;
-  hasTimeline?: boolean;
-  hasPerspectives?: boolean;
-  hasSocialPulse?: boolean;
-  timeline?: any;
-  perspectives?: any;
-  socialPulse?: any;
-}
+import type { Story } from '@/types/story';
 
 interface StoryCardProps {
   story: Story;

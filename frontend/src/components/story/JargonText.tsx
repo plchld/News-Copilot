@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface JargonTerm {
@@ -22,14 +22,14 @@ const detectJargon = (word: string): JargonTerm | null => {
     'inflation': 'The rate at which the general level of prices for goods and services is rising',
     'quantum': 'Relating to the smallest possible discrete unit of any physical property',
     'neural': 'Related to artificial networks that mimic the human brain for machine learning',
-    'cryptocurrency': 'Digital or virtual currency secured by cryptography and blockchain technology'
+    'cryptocurrency': 'Digital or virtual currency secured by cryptography and blockchain technology',
   };
 
   const cleanWord = word.toLowerCase().replace(/[.,!?;:]/, '');
   if (jargonTerms[cleanWord]) {
     return {
       word: cleanWord,
-      explanation: jargonTerms[cleanWord]
+      explanation: jargonTerms[cleanWord],
     };
   }
   return null;
@@ -44,7 +44,7 @@ export default function JargonText({ content, onJargonClick }: JargonTextProps) 
     const rect = event.currentTarget.getBoundingClientRect();
     setTooltipPosition({
       x: rect.left + rect.width / 2,
-      y: rect.top - 10
+      y: rect.top - 10,
     });
     setHoveredTerm(term);
   };

@@ -2,16 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Clock } from 'lucide-react';
-
-interface TimelineEvent {
-  id: string;
-  date: string;
-  title: string;
-  summary: string;
-  details: string;
-  isMajor?: boolean;
-}
+import type { TimelineEvent } from '@/types/story';
 
 interface TimelineData {
   events: TimelineEvent[];

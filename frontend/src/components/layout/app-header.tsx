@@ -13,7 +13,7 @@ export function AppHeader({
   title, 
   subtitle, 
   showThemeToggle = true,
-  children 
+  children, 
 }: AppHeaderProps) {
   return (
     <header className="fixed inset-x-0 top-0 z-50 glass-premium border-b border-[var(--border-primary)]">

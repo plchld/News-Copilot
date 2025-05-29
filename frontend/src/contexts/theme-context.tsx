@@ -34,11 +34,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const root = window.document.documentElement;
     const body = window.document.body;
     
+    // Remove old classes
     root.classList.remove('light', 'dark');
     body.classList.remove('light', 'dark');
     
+    // Add new theme class
     root.classList.add(newTheme);
     body.classList.add(newTheme);
+    
+    // Also set data attribute for easier debugging
+    root.setAttribute('data-theme', newTheme);
   };
 
   useEffect(() => {
@@ -51,15 +56,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const toggleTheme = () => {
     if (!mounted) return; // Don't toggle until mounted
     
-    console.log('Toggle theme called, current theme:', theme);
     setTheme(prevTheme => {
       const newTheme = prevTheme === 'light' ? 'dark' : 'light';
-      console.log('Setting new theme:', newTheme);
       return newTheme;
     });
   };
-
-  console.log('ThemeProvider rendering with theme:', theme, 'mounted:', mounted);
 
   // Always provide the context, even when not mounted
   return (

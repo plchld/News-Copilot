@@ -11,7 +11,7 @@ interface PageWrapperProps {
 export function PageWrapper({ 
   children, 
   showThemeToggle = true,
-  themeTogglePosition = 'top-right' 
+  themeTogglePosition = 'top-right', 
 }: PageWrapperProps) {
   return (
     <>

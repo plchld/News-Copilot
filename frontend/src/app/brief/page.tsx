@@ -26,90 +26,71 @@ export default function BriefLandingPage() {
       </div>
 
       {/* Hero section */}
-      <section className="relative min-h-screen flex items-center justify-center px-6">
-        <div className="relative z-10 max-w-5xl mx-auto text-center">
+      <section className="relative min-h-screen flex items-center justify-center px-6 py-20">
+        <div className="relative z-10 max-w-4xl mx-auto text-center">
           {/* Accent text */}
           <motion.p
-            className="text-xs uppercase tracking-[0.2em] text-[var(--text-muted)] mb-8 no-select"
+            className="intro-text mb-12 no-select animate-fade-up animation-delay-100"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 20 }}
             transition={{ duration: 0.8, delay: 0.1 }}
           >
-            Introducing a new way to stay informed
+            Introducing News Copilot
           </motion.p>
 
-          {/* Premium headline with staggered animation */}
-          <h1 className="headline text-4xl md:text-6xl lg:text-8xl xl:text-9xl">
-            <motion.span
-              className="block animate-fade-up animation-delay-200"
-              style={{ fontSize: 'clamp(3rem, 8vw, 7rem)' }}
+          {/* Main headline with dramatic scale */}
+          <div className="animate-float">
+            <motion.h1
+              className="headline mb-8"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 30 }}
+              transition={{ duration: 1, delay: 0.3 }}
             >
-              Finally.
-            </motion.span>
-            <motion.span
-              className="block animate-fade-up animation-delay-400"
-              style={{ fontSize: 'clamp(3rem, 8vw, 7rem)' }}
-            >
-              News that respects
-            </motion.span>
-            <motion.span
-              className="block animate-fade-up animation-delay-600"
-              style={{ fontSize: 'clamp(3rem, 8vw, 7rem)' }}
-            >
-              your time.
-            </motion.span>
-          </h1>
+              <span className="headline-hero block animate-fade-up animation-delay-200">
+                Νέα.
+              </span>
+              <span className="headline-large block mt-4 animate-fade-up animation-delay-400">
+                που επιτέλους σέβονται
+              </span>
+              <span className="headline-large block animate-fade-up animation-delay-600">
+                τον χρόνο σου.
+              </span>
+            </motion.h1>
+          </div>
 
-          {/* Premium tagline */}
-          <motion.p className="tagline text-lg md:text-xl mt-8 animate-fade-up animation-delay-800">
+          {/* Tagline with better spacing */}
+          <motion.p className="tagline mt-16 animate-fade-up animation-delay-800">
             5 stories. 5 minutes. No noise.
           </motion.p>
-          <motion.p className="text-sm text-[var(--text-tertiary)] mt-3 animate-fade-up animation-delay-900 max-w-lg mx-auto">
+          <motion.p className="text-base text-[var(--text-secondary)] mt-6 animate-fade-up animation-delay-900 max-w-lg mx-auto leading-relaxed">
             A finite daily brief that goes as deep as you need. From surface summary to full context—on demand.
           </motion.p>
 
-          {/* Premium CTA button */}
-          <motion.div className="mt-16 animate-fade-up animation-delay-1000">
-            <Link
-              href="/brief/onboarding"
-              className="glass-button-premium no-select group"
-            >
-              <span className="relative z-10">Start Your Brief</span>
-              <div className="shine" />
+          {/* CTA Button with more breathing room */}
+          <motion.div
+            className="mt-20 animate-fade-up animation-delay-1000"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: mounted ? 1 : 0, y: mounted ? 0 : 20 }}
+            transition={{ duration: 0.8, delay: 1.2 }}
+          >
+            <Link href="/brief/onboarding" className="button-editorial">
+              Begin Reading
             </Link>
           </motion.div>
 
-          {/* Philosophy indicators */}
-          <motion.div className="flex flex-wrap items-center justify-center gap-8 mt-20 text-xs text-[var(--text-muted)] animate-fade-up animation-delay-1000">
-            <span className="flex items-center gap-2 no-select">
-              <div className="w-1 h-1 rounded-full bg-[var(--text-muted)]" />
-              Curated intelligence
+          {/* Premium feature indicators */}
+          <motion.div className="flex flex-wrap items-center justify-center gap-10 mt-24 animate-fade-up animation-delay-1200">
+            <span className="feature-premium animate-fade-up animation-delay-1300">
+              Unbiased context
             </span>
-            <span className="flex items-center gap-2 no-select">
-              <div className="w-1 h-1 rounded-full bg-[var(--text-muted)]" />
-              Progressive depth
+            <span className="feature-premium animate-fade-up animation-delay-1400">
+              Depth on demand
             </span>
-            <span className="flex items-center gap-2 no-select">
-              <div className="w-1 h-1 rounded-full bg-[var(--text-muted)]" />
+            <span className="feature-premium animate-fade-up animation-delay-1500">
               Finite by design
             </span>
           </motion.div>
         </div>
-
-        {/* Subtle scroll indicator */}
-        <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-fade-up animation-delay-1000"
-          animate={{
-            y: [0, 10, 0],
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        >
-          <div className="w-[1px] h-16 bg-gradient-to-b from-[var(--text-muted)] to-transparent" />
-        </motion.div>
       </section>
     </main>
   );

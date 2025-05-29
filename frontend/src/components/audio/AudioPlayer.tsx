@@ -21,12 +21,12 @@ export default function AudioPlayer({
   stories, 
   currentIndex, 
   onStoryChange,
-  isVisible = true 
+  isVisible = true, 
 }: AudioPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [speed, setSpeed] = useState(1);
-  const [volume, setVolume] = useState(1);
+  // Volume control removed for now
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
 

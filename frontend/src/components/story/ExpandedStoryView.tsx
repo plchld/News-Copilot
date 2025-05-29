@@ -2,26 +2,12 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Bell, Clock, BarChart3, MessageCircle, Users, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Bell, Clock, BarChart3, Users, TrendingUp } from 'lucide-react';
 import TimelineView from './TimelineView';
 import PerspectivesView from './PerspectivesView';
 import SocialPulseView from './SocialPulseView';
 import JargonText, { JargonModal } from './JargonText';
-
-interface Story {
-  id: string;
-  category: string;
-  headline: string;
-  readTime: number;
-  lastUpdated: string;
-  fullSummary: string;
-  timeline?: any;
-  perspectives?: any;
-  socialPulse?: any;
-  hasTimeline?: boolean;
-  hasPerspectives?: boolean;
-  hasSocialPulse?: boolean;
-}
+import type { Story } from '@/types/story';
 
 interface ExpandedStoryViewProps {
   story: Story;
@@ -52,7 +38,7 @@ const getCategoryColor = (category: string) => {
 
 export default function ExpandedStoryView({ story, onClose }: ExpandedStoryViewProps) {
   const [activeTab, setActiveTab] = useState<TabType>('story');
-  const [showJargonExplanation, setShowJargonExplanation] = useState<any>(null);
+  const [showJargonExplanation, setShowJargonExplanation] = useState<{ word: string; explanation: string } | null>(null);
 
   const tabs: Tab[] = [
     {

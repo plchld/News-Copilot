@@ -13,7 +13,7 @@ export function ThemeToggle() {
     setMounted(true);
   }, []);
   
-  console.log('ThemeToggle rendered with theme:', theme, 'mounted:', mounted);
+  // Debug logs removed for production
 
   // Show a placeholder during SSR/hydration
   if (!mounted) {
@@ -29,29 +29,26 @@ export function ThemeToggle() {
     <div className="flex items-center gap-2">
       <span className="text-xs text-[var(--text-muted)]">Theme: {theme}</span>
       <button
-        onClick={() => {
-          console.log('Theme toggle clicked! Current theme:', theme);
-          toggleTheme();
-        }}
+        onClick={toggleTheme}
         className="relative w-14 h-7 rounded-full bg-black/5 dark:bg-white/10 border border-black/10 dark:border-white/10 transition-colors duration-300 z-50 cursor-pointer"
         aria-label="Toggle theme"
         type="button"
       >
         <motion.div
-          className="absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white dark:bg-black shadow-sm flex items-center justify-center pointer-events-none"
+          className="absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-[var(--text-primary)] shadow-sm flex items-center justify-center pointer-events-none"
           animate={{
             x: theme === 'light' ? 0 : 26,
           }}
           transition={{
-            type: "spring",
+            type: 'spring',
             stiffness: 500,
-            damping: 30
+            damping: 30,
           }}
         >
           {theme === 'light' ? (
             <Sun className="w-3.5 h-3.5 text-amber-600" />
           ) : (
-            <Moon className="w-3.5 h-3.5 text-white" />
+            <Moon className="w-3.5 h-3.5 text-[var(--background)]" />
           )}
         </motion.div>
       </button>

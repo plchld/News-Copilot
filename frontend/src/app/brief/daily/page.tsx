@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { Headphones, BookOpen, CheckCircle } from 'lucide-react';
 import StoryCard from '@/components/story/StoryCard';
@@ -31,14 +31,14 @@ const dailyStories = [
           title: 'Initial draft legislation',
           summary: 'Commission publishes first AI Act proposal',
           details: 'The European Commission released its initial proposal for AI regulation, marking the first comprehensive attempt to regulate artificial intelligence at the EU level.',
-          isMajor: true
+          isMajor: true,
         },
         {
           id: '2', 
           date: 'April 2024',
           title: 'Parliamentary amendments',
           summary: 'MEPs propose key changes to risk categories',
-          details: 'The European Parliament introduced significant amendments to strengthen protections and clarify risk assessment procedures.'
+          details: 'The European Parliament introduced significant amendments to strengthen protections and clarify risk assessment procedures.',
         },
         {
           id: '3',
@@ -46,20 +46,20 @@ const dailyStories = [
           title: 'Final vote and approval',
           summary: 'Legislation passes with overwhelming majority',
           details: 'The AI Act received final approval with 523 votes in favor, establishing the world\'s first comprehensive AI regulation.',
-          isMajor: true
-        }
-      ]
+          isMajor: true,
+        },
+      ],
     },
     perspectives: {
       sources: [
         { id: '1', name: 'Tech Weekly', position: 25, analysis: 'Emphasizes innovation benefits and global competitiveness' },
         { id: '2', name: 'Privacy Watch', position: 15, analysis: 'Focuses on fundamental rights protections and privacy safeguards' },
-        { id: '3', name: 'Business Today', position: 75, analysis: 'Concerns about regulatory burden on industry' }
+        { id: '3', name: 'Business Today', position: 75, analysis: 'Concerns about regulatory burden on industry' },
       ],
       progressiveQuote: 'This landmark legislation puts human rights at the center of AI development',
       conservativeQuote: 'Excessive regulation could stifle European innovation in the global AI race',
       progressiveTerms: ['human rights', 'protection', 'accountability'],
-      conservativeTerms: ['innovation', 'competitiveness', 'burden']
+      conservativeTerms: ['innovation', 'competitiveness', 'burden'],
     },
     socialPulse: {
       trendingLevel: 'high' as const,
@@ -68,15 +68,15 @@ const dailyStories = [
       questionAnswer: 'The EU AI Act will likely influence global AI standards, even for companies outside Europe.',
       misconception: {
         claim: 'The AI Act will ban all AI development in Europe',
-        correction: 'The Act regulates high-risk AI systems but encourages innovation in low-risk applications'
+        correction: 'The Act regulates high-risk AI systems but encourages innovation in low-risk applications',
       },
       sentiment: {
         positive: 45,
         neutral: 35,
-        negative: 20
-      }
+        negative: 20,
+      },
     },
-    duration: 240
+    duration: 240,
   },
   {
     id: '2',
@@ -90,7 +90,7 @@ const dailyStories = [
     hasTimeline: true,
     hasPerspectives: true,
     hasSocialPulse: false,
-    duration: 180
+    duration: 180,
   },
   {
     id: '3',
@@ -104,7 +104,7 @@ const dailyStories = [
     hasTimeline: false,
     hasPerspectives: true,
     hasSocialPulse: true,
-    duration: 120
+    duration: 120,
   },
   {
     id: '4',
@@ -118,7 +118,7 @@ const dailyStories = [
     hasTimeline: true,
     hasPerspectives: false,
     hasSocialPulse: false,
-    duration: 180
+    duration: 180,
   },
   {
     id: '5',
@@ -132,28 +132,14 @@ const dailyStories = [
     hasTimeline: true,
     hasPerspectives: true,
     hasSocialPulse: true,
-    duration: 240
+    duration: 240,
   },
 ];
-
-// Get category color
-const getCategoryColor = (category: string): string => {
-  const colors: Record<string, string> = {
-    tech: '#3B82F6',
-    politics: '#EF4444',
-    business: '#10B981',
-    world: '#8B5CF6',
-    culture: '#F59E0B',
-    health: '#EC4899',
-    science: '#06B6D4',
-  };
-  return colors[category] || '#6B7280';
-};
 
 export default function DailyBriefPage() {
   const [audioMode, setAudioMode] = useState(false);
   const [currentAudioIndex, setCurrentAudioIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
 
   const totalReadTime = dailyStories.reduce(
     (acc, story) => acc + story.readTime,
@@ -262,7 +248,6 @@ export default function DailyBriefPage() {
           </motion.div>
         </div>
       </div>
-
 
       {/* Enhanced Audio Player */}
       {audioMode && (
