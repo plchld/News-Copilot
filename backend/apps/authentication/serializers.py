@@ -8,8 +8,9 @@ User = get_user_model()
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'username', 'email', 'is_premium', 'analysis_count')
-        read_only_fields = ('id', 'analysis_count')
+        fields = ('id', 'username', 'email', 'first_name', 'last_name', 
+                 'is_staff', 'is_superuser', 'is_premium', 'analysis_count')
+        read_only_fields = ('id', 'is_staff', 'is_superuser', 'analysis_count')
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -32,21 +33,22 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    username = serializers.CharField()
+    email = serializers.EmailField()
     password = serializers.CharField()
 
     def validate(self, attrs):
-        username = attrs.get('username')
+        email = attrs.get('email')
         password = attrs.get('password')
 
-        if username and password:
-            user = authenticate(username=username, password=password)
+        if email and password:
+            # Authenticate using email (our custom backend will handle this)
+            user = authenticate(username=email, password=password)
             if not user:
                 raise serializers.ValidationError('Invalid credentials')
             if not user.is_active:
                 raise serializers.ValidationError('User account is disabled')
         else:
-            raise serializers.ValidationError('Must include username and password')
+            raise serializers.ValidationError('Must include email and password')
 
         attrs['user'] = user
         return attrs

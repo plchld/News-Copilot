@@ -7,7 +7,8 @@
       "Bash(pip install:*)",
       "Bash(pip3 install:*)",
       "Bash(ls:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(chmod:*)"
     ],
     "deny": []
   },

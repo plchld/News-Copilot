@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from . import admin_views
 
 app_name = 'api'
 
@@ -18,4 +19,8 @@ urlpatterns = [
     path('analyze/', views.analyze_article, name='analyze_article'),
     path('health/', views.health_check, name='health_check'),
     path('testing-info/', views.testing_info, name='testing_info'),
+    
+    # Admin endpoints
+    path('admin/stats/', admin_views.admin_stats, name='admin_stats'),
+    path('admin/users/', admin_views.user_list, name='admin_users'),
 ]
