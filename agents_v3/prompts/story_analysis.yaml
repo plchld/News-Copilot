@@ -1,0 +1,40 @@
+name: "Story Analysis Template"
+description: "Short template for individual story analysis"
+version: "1.0"
+agent_role: "Story Analysis"
+variables:
+  story_section:
+    type: "string"
+    description: "Formatted story information"
+    required: true
+  story_num:
+    type: "integer"
+    description: "Current story number"
+    required: true
+  total_stories:
+    type: "integer"
+    description: "Total number of stories"
+    required: true
+  agent_role:
+    type: "string"
+    description: "The analyzing agent's role"
+    required: true
+usage_notes:
+  - "Used for individual story analysis in batch processing"
+  - "Keeps analysis focused and structured"
+  - "Mentions agent role for perspective"
+last_updated: "2024-01-30"
+tags: ["story", "analysis", "batch", "short"]
+
+template: |
+  {story_section}
+
+  ## Analysis ({story_num}/{total_stories})
+  
+  Analyze from {agent_role} perspective:
+  1. **Impact**: Significance and stakeholders
+  2. **Perspectives**: Multiple viewpoints and sources
+  3. **Verification**: Key claims to check
+  4. **Insights**: Practical implications
+
+  Provide focused analysis from your specialized perspective.

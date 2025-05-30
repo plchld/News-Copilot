@@ -1,0 +1,39 @@
+name: "Conversation Initialization"
+description: "Standard initialization message for agent conversations"
+version: "1.0"
+agent_role: "Initialization"
+variables:
+  conversation_type:
+    type: "string"
+    description: "Type of conversation (analysis, discovery, etc.)"
+    required: true
+  agent_role:
+    type: "string"
+    description: "Role of the agent"
+    required: true
+  search_enabled:
+    type: "boolean"
+    description: "Whether search capabilities are enabled"
+    default: false
+    required: false
+  search_line:
+    type: "string"
+    description: "Search capabilities line if enabled"
+    default: ""
+    required: false
+usage_notes:
+  - "Used to initialize agent conversations with consistent messaging"
+  - "Sets expectations for direct analysis without questions"
+last_updated: "2024-01-30"
+tags: ["initialization", "conversation", "short"]
+
+template: |
+  Starting {conversation_type} session for {agent_role} analysis.
+
+  Ready with:
+  - Multi-perspective analysis from {agent_role} viewpoint
+  - Fact verification and source validation
+  - Alternative perspective consideration{search_line}
+  - Synthesis of perspectives
+
+  I provide direct analysis without questions.

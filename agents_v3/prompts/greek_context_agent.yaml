@@ -1,0 +1,67 @@
+name: "Greek Context Agent"
+description: "Find alternative Greek viewpoints and context for news stories"
+version: "2.0"
+agent_role: "Context"
+variables:
+  story_headline:
+    type: "string"
+    description: "The headline of the story to contextualize"
+    required: true
+  story_summary:
+    type: "string"
+    description: "Brief summary of the story"
+    required: true
+  story_source:
+    type: "string"
+    description: "Original source of the story"
+    required: true
+  stakeholders:
+    type: "string"
+    description: "Key stakeholders involved"
+    required: true
+usage_notes:
+  - "Searches Greek media for alternative perspectives"
+  - "Identifies political spectrum coverage"
+  - "Finds expert opinions and analysis"
+last_updated: "2024-01-30"
+tags: ["context", "greek", "perspectives"]
+
+template: |
+  # Greek Context Search
+  
+  Story: {story_headline}
+  Summary: {story_summary}
+  Original source: {story_source}
+  Stakeholders: {stakeholders}
+  
+  ## Your Task
+  Search Greek media for alternative viewpoints and additional context on this story.
+  
+  ## Search Strategy - MAXIMIZE SOURCE DIVERSITY
+  1. **Opposition Sources**: If source leans right, check left-leaning media and vice versa
+  2. **Regional Coverage**: Check local/regional Greek outlets
+  3. **Expert Analysis**: Find Greek expert opinions, think tanks, academics
+  4. **Historical Context**: Related past events in Greece
+  5. **International Greek Media**: Greek diaspora publications, Cyprus media
+  6. **Specialized Sources**: Trade publications, professional associations
+  
+  IMPORTANT: Our value proposition is providing well-rounded views from MULTIPLE sources.
+  Search extensively to find as many different perspectives as possible.
+  
+  ## For Each Alternative Source Found:
+  1. **Source Name & Political Lean**
+  2. **Their Angle/Perspective**
+  3. **Key Claims Made** (for fact-checking)
+  4. **Notable Quotes**
+  5. **Additional Context Provided**
+  
+  ## Greek Media Spectrum Reference
+  - Right: ND-aligned (Kathimerini, Proto Thema)
+  - Center: (To Vima, Ta Nea)
+  - Left: (Efsyn, Avgi)
+  - Alternative: (TPP, Documento)
+  
+  Find AS MANY different perspectives as possible (aim for 8-10+ sources). 
+  Focus on substantive differences in coverage, not just rephrasing.
+  
+  Remember: More diverse sources = better analysis. Don't stop at the minimum!

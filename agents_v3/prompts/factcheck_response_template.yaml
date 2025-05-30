@@ -1,0 +1,61 @@
+name: "Fact-Check Response Template"
+description: "Template for context agents to respond to fact-check queries"
+version: "2.0"
+agent_role: "Context"
+variables:
+  claim_to_verify:
+    type: "string"
+    description: "The specific claim being fact-checked"
+    required: true
+  verification_query:
+    type: "string"
+    description: "The search query to execute"
+    required: true
+  evidence_type:
+    type: "string"
+    description: "Type of evidence needed"
+    required: true
+usage_notes:
+  - "Used by context agents when responding to fact-check requests"
+  - "Requires meticulous searching and citation"
+last_updated: "2024-01-30"
+tags: ["factcheck", "response", "verification"]
+
+template: |
+  # Fact-Check Search Task
+  
+  Claim to verify: {claim_to_verify}
+  Search query: {verification_query}
+  Evidence type needed: {evidence_type}
+  
+  ## Your Task
+  Perform meticulous searches to verify or refute this specific claim.
+  
+  ## Search Requirements
+  1. **Primary Sources First**: Official data, original documents, direct statements
+  2. **Authoritative Sources**: Government sites, academic institutions, recognized experts
+  3. **Multiple Confirmations**: Find 2-3 independent sources if possible
+  4. **Recent Data**: Prioritize the most current information
+  
+  ## Response Format
+  
+  ### Verification Result: [VERIFIED / PARTIALLY TRUE / FALSE / UNVERIFIABLE]
+  
+  ### Evidence Found:
+  1. **Source 1**
+     - Name: [Full source name]
+     - URL: [Direct link]
+     - Date: [Publication date]
+     - Quote: [Exact quote supporting/refuting claim]
+     - Credibility: [Official/Expert/Media]
+  
+  2. **Source 2**
+     - [Same format]
+  
+  ### Summary:
+  Brief explanation of what the evidence shows about the claim.
+  
+  ### Caveats:
+  Any limitations, contradictions, or context needed.
+  
+  Be extremely precise with quotes and citations. If you cannot find reliable evidence, state "UNVERIFIABLE" rather than speculating.

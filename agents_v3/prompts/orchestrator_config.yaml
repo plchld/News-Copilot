@@ -1,0 +1,52 @@
+name: "Orchestrator Configuration"
+description: "Configuration settings and default values for orchestrator"
+version: "1.0"
+agent_role: "Configuration"
+variables: {}
+usage_notes:
+  - "Contains default categories and conversation flow definitions"
+  - "Centralized configuration for orchestrator behavior"
+last_updated: "2024-01-30"
+tags: ["orchestrator", "config", "categories"]
+
+template: |
+  # Default news categories
+  default_categories:
+    - "Politics & Government"
+    - "International Relations" 
+    - "Economy & Business"
+    - "Technology & Innovation"
+    - "Environment & Climate"
+    - "Health & Medical"
+    - "Social Issues & Culture"
+    - "Security & Defense"
+
+  # Agent conversation flow - questions for each phase
+  conversation_flow:
+    greek_perspective:
+      needs_from: ["discovery"]
+      questions:
+        - "What is the Greek political context for these stories?"
+        - "What are implications for Greek domestic politics?" 
+        - "How do these relate to current Greek government policies?"
+
+    international_perspective:
+      needs_from: ["discovery"]
+      questions:
+        - "What are the international implications?"
+        - "How will other countries likely respond?"
+        - "What are the broader geopolitical contexts?"
+
+    fact_verification:
+      needs_from: ["discovery", "greek_perspective", "international_perspective"]
+      questions:
+        - "What claims need fact-checking?"
+        - "Can you verify the sources mentioned?"
+        - "Are there contradictions that need investigation?"
+
+    synthesis:
+      needs_from: ["discovery", "greek_perspective", "international_perspective", "fact_verification"]
+      questions:
+        - "What is your final analysis for synthesis?"
+        - "What key points should be highlighted?"
+        - "Are there remaining uncertainties or gaps?"

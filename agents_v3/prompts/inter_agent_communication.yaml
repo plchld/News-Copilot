@@ -1,0 +1,31 @@
+name: "Inter-Agent Communication Prompt"
+description: "Short prompt template for agent-to-agent communication requests"
+version: "1.0"
+agent_role: "Communication"
+variables:
+  requesting_agent:
+    type: "string"
+    description: "Name of the agent making the request"
+    required: true
+  question:
+    type: "string"
+    description: "The specific question or request"
+    required: true
+  discovery_context:
+    type: "string"
+    description: "Discovery content for context"
+    default: ""
+    required: false
+usage_notes:
+  - "Used for inter-agent communication in isolated conversations"
+  - "Keeps agents focused on providing direct answers"
+  - "Ensures agents don't ask questions back"
+last_updated: "2024-01-30"
+tags: ["communication", "inter-agent", "short"]
+
+template: |
+  Request from {requesting_agent}: {question}
+
+  Context: {discovery_context}
+
+  Provide direct analysis addressing the question. Give expert insights from your perspective.

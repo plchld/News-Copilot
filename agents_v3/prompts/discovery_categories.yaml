@@ -1,0 +1,123 @@
+name: "Discovery Categories Configuration"
+description: "Category-specific configuration for discovery agents"
+version: "2.0"
+agent_role: "Discovery"
+variables: {}
+usage_notes:
+  - "Defines the 6 discovery categories and their parameters"
+  - "Each category has specific search terms and relevance criteria"
+last_updated: "2024-01-30"
+tags: ["discovery", "categories", "config"]
+
+template: |
+  categories:
+    greek_political:
+      name: "Greek Political News"
+      search_terms:
+        - "Ελλάδα πολιτική"
+        - "Ελληνική κυβέρνηση"
+        - "Νέα Δημοκρατία"
+        - "ΣΥΡΙΖΑ"
+        - "ΠΑΣΟΚ"
+        - "Ελληνική Βουλή"
+      sources:
+        - "kathimerini.gr"
+        - "tanea.gr"
+        - "protothema.gr"
+        - "efsyn.gr"
+      international_relevance_criteria:
+        - "EU relations"
+        - "NATO involvement"
+        - "International agreements"
+        - "Migration policy"
+        - "Energy deals"
+        - "Foreign investment"
+    
+    greek_economic:
+      name: "Greek Economic News"
+      search_terms:
+        - "Ελληνική οικονομία"
+        - "Χρηματιστήριο Αθηνών"
+        - "ελληνικές επιχειρήσεις"
+        - "ελληνική ανάπτυξη"
+        - "ελληνικός προϋπολογισμός"
+      sources:
+        - "naftemporiki.gr"
+        - "capital.gr"
+        - "euro2day.gr"
+      international_relevance_criteria:
+        - "Eurozone impact"
+        - "International markets"
+        - "Foreign investment"
+        - "Tourism numbers"
+        - "Export/import data"
+    
+    international_political:
+      name: "International Political News"
+      search_terms:
+        - "world politics"
+        - "international relations"
+        - "EU politics"
+        - "US politics"
+        - "geopolitics"
+        - "διεθνής πολιτική"
+      sources:
+        - "reuters.com"
+        - "bbc.com"
+        - "euronews.com"
+        - "cnn.gr"
+      greek_relevance_criteria:
+        - "EU decisions"
+        - "Mediterranean region"
+        - "Balkans"
+        - "Turkey relations"
+        - "Cyprus"
+    
+    international_economic:
+      name: "International Economic News"
+      search_terms:
+        - "global economy"
+        - "world markets"
+        - "international trade"
+        - "eurozone economy"
+        - "παγκόσμια οικονομία"
+      sources:
+        - "ft.com"
+        - "bloomberg.com"
+        - "economist.com"
+        - "reuters.com/markets"
+      greek_relevance_criteria:
+        - "Eurozone policies"
+        - "Energy prices"
+        - "Tourism markets"
+        - "Shipping industry"
+    
+    science:
+      name: "Science News"
+      search_terms:
+        - "scientific breakthrough"
+        - "επιστημονική ανακάλυψη"
+        - "medical research"
+        - "climate science"
+        - "space exploration"
+      sources:
+        - "nature.com"
+        - "sciencemag.org"
+        - "newscientist.com"
+        - "eurekalert.org"
+      always_international: true
+    
+    technology:
+      name: "Technology News"
+      search_terms:
+        - "technology news"
+        - "AI artificial intelligence"
+        - "τεχνολογία"
+        - "tech innovation"
+        - "cybersecurity"
+      sources:
+        - "techcrunch.com"
+        - "wired.com"
+        - "theverge.com"
+        - "arstechnica.com"
+      always_international: true
